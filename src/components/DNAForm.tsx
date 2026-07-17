@@ -17,6 +17,43 @@ const POPULAR_FONTS = [
   "Nunito", "Raleway", "Ubuntu", "Rubik", "Work Sans", "Outfit"
 ];
 
+const ModalWrapper = ({ title, children, isOpen, onClose }: any) => (
+  <AnimatePresence>
+    {isOpen && (
+      <motion.div 
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        onClick={onClose}
+        className="fixed inset-0 bg-black/20 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+      >
+        <motion.div 
+          initial={{ opacity: 0, scale: 0.95, y: 20 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          exit={{ opacity: 0, scale: 0.95, y: 20 }}
+          onClick={e => e.stopPropagation()}
+          className="bg-white/90 backdrop-blur-xl border border-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col max-h-[85vh]"
+        >
+          <div className="flex items-center justify-between p-5 border-b border-gray-100 bg-white/50">
+            <h3 className="font-bold text-gray-800">{title}</h3>
+            <button onClick={onClose} className="p-1 text-gray-400 hover:text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-full transition-colors">
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+          <div className="p-6 overflow-y-auto">
+            {children}
+          </div>
+          <div className="p-5 border-t border-gray-100 bg-gray-50/50 flex justify-end">
+            <button onClick={onClose} className="px-6 py-2 bg-[var(--venturo-teal)] hover:bg-[var(--venturo-dark)] text-white rounded-full font-medium transition-colors text-sm shadow-md">
+              Simpan & Tutup
+            </button>
+          </div>
+        </motion.div>
+      </motion.div>
+    )}
+  </AnimatePresence>
+);
+
 export default function DNAForm({ data, onChange, onModalChange }: DNAFormProps) {
   const [activeModal, setActiveModal] = useState<string | null>(null);
   const [fontSearch, setFontSearch] = useState('');
@@ -76,42 +113,6 @@ export default function DNAForm({ data, onChange, onModalChange }: DNAFormProps)
     </motion.div>
   );
 
-  const ModalWrapper = ({ title, children, isOpen }: any) => (
-    <AnimatePresence>
-      {isOpen && (
-        <motion.div 
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          onClick={closeModal}
-          className="fixed inset-0 bg-black/20 backdrop-blur-sm z-50 flex items-center justify-center p-4"
-        >
-          <motion.div 
-            initial={{ opacity: 0, scale: 0.95, y: 20 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95, y: 20 }}
-            onClick={e => e.stopPropagation()}
-            className="bg-white/90 backdrop-blur-xl border border-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col max-h-[85vh]"
-          >
-            <div className="flex items-center justify-between p-5 border-b border-gray-100 bg-white/50">
-              <h3 className="font-bold text-gray-800">{title}</h3>
-              <button onClick={closeModal} className="p-1 text-gray-400 hover:text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-full transition-colors">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            <div className="p-6 overflow-y-auto">
-              {children}
-            </div>
-            <div className="p-5 border-t border-gray-100 bg-gray-50/50 flex justify-end">
-              <button onClick={closeModal} className="px-6 py-2 bg-[var(--venturo-teal)] hover:bg-[var(--venturo-dark)] text-white rounded-full font-medium transition-colors text-sm shadow-md">
-                Simpan & Tutup
-              </button>
-            </div>
-          </motion.div>
-        </motion.div>
-      )}
-    </AnimatePresence>
-  );
 
   return (
     <div className="flex flex-col gap-6 w-full h-full text-gray-800 pb-10">
@@ -242,7 +243,7 @@ export default function DNAForm({ data, onChange, onModalChange }: DNAFormProps)
       {/* --- MODALS --- */}
       
       {/* Brand Name Modal */}
-      <ModalWrapper title="Brand Identity" isOpen={activeModal === 'brandName'}>
+      <ModalWrapper title="Brand Identity" isOpen={activeModal === 'brandName'} onClose={closeModal}>
         <div className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Brand Name</label>
@@ -256,7 +257,7 @@ export default function DNAForm({ data, onChange, onModalChange }: DNAFormProps)
       </ModalWrapper>
 
       {/* Visual Identity Modal (Colors & Fonts) */}
-      <ModalWrapper title="Visual Identity & Typography" isOpen={activeModal === 'visual'}>
+      <ModalWrapper title="Visual Identity & Typography" isOpen={activeModal === 'visual'} onClose={closeModal}>
         <div className="space-y-6">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-3">Pilih Google Font</label>
@@ -309,7 +310,7 @@ export default function DNAForm({ data, onChange, onModalChange }: DNAFormProps)
       </ModalWrapper>
 
       {/* Brand Overview Modal */}
-      <ModalWrapper title="Brand Overview & Core Values" isOpen={activeModal === 'overview'}>
+      <ModalWrapper title="Brand Overview & Core Values" isOpen={activeModal === 'overview'} onClose={closeModal}>
         <div className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Brand Overview</label>
@@ -329,7 +330,7 @@ export default function DNAForm({ data, onChange, onModalChange }: DNAFormProps)
       </ModalWrapper>
 
       {/* Tone Modal */}
-      <ModalWrapper title="Audience & Tone" isOpen={activeModal === 'tone'}>
+      <ModalWrapper title="Audience & Tone" isOpen={activeModal === 'tone'} onClose={closeModal}>
         <div className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Target Audience</label>
@@ -343,7 +344,7 @@ export default function DNAForm({ data, onChange, onModalChange }: DNAFormProps)
       </ModalWrapper>
 
       {/* Content Strategy Modal */}
-      <ModalWrapper title="Content Strategy" isOpen={activeModal === 'contentStrategy'}>
+      <ModalWrapper title="Content Strategy" isOpen={activeModal === 'contentStrategy'} onClose={closeModal}>
         <div className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>

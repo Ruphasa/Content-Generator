@@ -8,12 +8,10 @@ export const maxDuration = 30;
 // Initialize Supabase client for Server
 // Using Anon Key here is fine because we enabled public read/write in RLS for the cache table.
 // If you use Service Role Key, you can bypass RLS, but this is simpler for now.
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
-
 export async function POST(req: Request) {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  const supabase = supabaseUrl && supabaseKey ? createClient(supabaseUrl, supabaseKey) : null;
   const { messages, data } = await req.json();
 
   let dnaContext = "";
@@ -41,7 +39,8 @@ Gunakan konteks ini untuk memberikan saran yang relevan. Jika pengguna meminta s
   console.log("Checking cache for hash:", hash);
 
   try {
-    const { data: cacheData, error: cacheError } = await supabase
+    if (supabase) {
+      const { data: cacheData, error: cacheError } = await supabase
       .from('ai_responses_cache')
       .select('response_text')
       .eq('prompt_hash', hash)
@@ -72,6 +71,7 @@ Gunakan konteks ini untuk memberikan saran yang relevan. Jika pengguna meminta s
           'X-Vercel-AI-Data-Stream': 'v1',
         },
       });
+      }
     }
   } catch (e) {
     console.error("Cache lookup failed, proceeding to LLM:", e);
@@ -91,13 +91,15 @@ Gunakan konteks ini untuk memberikan saran yang relevan. Jika pengguna meminta s
     async onFinish({ text }) {
       // Save to cache after streaming is finished
       try {
-        await supabase
-          .from('ai_responses_cache')
-          .insert({
-            prompt_hash: hash,
-            response_text: text
-          });
-        console.log("Successfully saved response to cache.");
+        if (supabase) {
+          await supabase
+            .from('ai_responses_cache')
+            .insert({
+              prompt_hash: hash,
+              response_text: text
+            });
+          console.log("Successfully saved response to cache.");
+        }
       } catch (e) {
         console.error("Failed to save to cache:", e);
       }

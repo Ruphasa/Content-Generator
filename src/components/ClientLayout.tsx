@@ -205,12 +205,13 @@ export default function ClientLayout() {
         {/* Content Container (The Glass Card) */}
         <div className="flex-1 w-full max-w-5xl mx-auto glass rounded-2xl rounded-t-none flex flex-col overflow-hidden shadow-xl border-t-0 relative">
 
-          <div className="flex-1 overflow-y-auto scrollbar-hide p-6 pb-24">
+          <div className="flex-1 overflow-y-auto scrollbar-hide p-6">
             {activeTab === 'overview' ? (
               <DNAForm data={dnaData} onChange={updateDNA} onModalChange={setActiveModal} />
             ) : (
               <BusinessDetailsForm data={dnaData} onChange={updateDNA} />
             )}
+            <div className="h-40 w-full flex-shrink-0" />
           </div>
 
           {/* Floating Action Buttons with Fade */}

@@ -1,4 +1,4 @@
-import { groq } from '@ai-sdk/groq';
+import { createGroq } from '@ai-sdk/groq';
 import { streamText } from 'ai';
 import { createClient } from '@supabase/supabase-js';
 import crypto from 'crypto';
@@ -24,18 +24,21 @@ Kontek Klien Saat Ini (DNA Form State):
 - Audience: ${data.dnaData.audience || "Belum diisi"}
 - Tone: ${data.dnaData.tone || "Belum diisi"}
 - Font: ${data.dnaData.font || "Belum diisi"}
-- Aspect Ratio: ${data.dnaData.aspectRatio || "Belum diisi"}
-
-Gunakan konteks ini untuk memberikan saran yang relevan. Jika pengguna meminta saran font, berikan rekomendasi berdasarkan Category dan Tone mereka. Jangan menyebutkan bahwa kamu melihat JSON atau form state ini secara eksplisit, bersikaplah seolah-olah kamu adalah asisten (Copilot) proaktif yang menemani mereka mengisi form. Gunakan bahasa Indonesia yang santai, profesional, dan menyenangkan (seperti style Venturo).
 `;
   }
 
+  const sanitizedMessages = messages.map((m: any) => ({
+    role: m.role,
+    content: m.text || m.content || (m.parts && m.parts[0]?.text) || ''
+  }));
+
   // Caching Logic
   // We hash the system context + the latest user message to find identical queries
-  const latestMessage = messages[messages.length - 1]?.content || "";
+  const latestMessage = sanitizedMessages[sanitizedMessages.length - 1]?.content || "";
   const rawString = dnaContext + latestMessage;
   const hash = crypto.createHash('sha256').update(rawString).digest('hex');
 
+  console.log("rawString for hash:", rawString);
   console.log("Checking cache for hash:", hash);
 
   try {
@@ -56,19 +59,19 @@ Gunakan konteks ini untuk memberikan saran yang relevan. Jika pengguna meminta s
       const stream = new ReadableStream({
         async start(controller) {
           for (let i = 0; i < words.length; i++) {
-            // AI SDK expects data stream format (0: text)
-            // https://sdk.vercel.ai/docs/reference/ai-sdk-ui/stream-parts
-            controller.enqueue(new TextEncoder().encode(`0:${JSON.stringify(words[i] + (i < words.length - 1 ? ' ' : ''))}\n`));
+            // DefaultChatTransport with toUIMessageStreamResponse expects text-delta format
+            controller.enqueue(new TextEncoder().encode(`data: {"type":"text-delta","id":"cache-0","delta":${JSON.stringify(words[i] + (i < words.length - 1 ? ' ' : ''))}}\n\n`));
             await new Promise((resolve) => setTimeout(resolve, 20)); // simulated delay
           }
+          controller.enqueue(new TextEncoder().encode(`data: {"type":"finish-step"}\n\n`));
+          controller.enqueue(new TextEncoder().encode(`data: {"type":"finish","finishReason":"stop"}\n\n`));
           controller.close();
         }
       });
 
       return new Response(stream, {
         headers: {
-          'Content-Type': 'text/plain; charset=utf-8',
-          'X-Vercel-AI-Data-Stream': 'v1',
+          'Content-Type': 'text/event-stream; charset=utf-8',
         },
       });
       }
@@ -80,14 +83,14 @@ Gunakan konteks ini untuk memberikan saran yang relevan. Jika pengguna meminta s
 
   console.log("CACHE MISS! Calling Groq LLM.");
 
-  const systemMessage = {
-    role: 'system',
-    content: `Kamu adalah asisten AI (Copilot) untuk aplikasi pembuat video otomatis. ${dnaContext}`
-  };
+  const customGroq = createGroq({
+    apiKey: process.env.LLM_API_KEY || process.env.GROQ_API_KEY,
+  });
 
   const result = streamText({
-    model: groq('llama-3.3-70b-versatile'), 
-    messages: [systemMessage, ...messages],
+    model: customGroq('llama-3.3-70b-versatile'), 
+    system: `Kamu adalah asisten AI (Copilot) untuk aplikasi pembuat video otomatis. ${dnaContext}`,
+    messages: sanitizedMessages,
     async onFinish({ text }) {
       // Save to cache after streaming is finished
       try {
@@ -106,5 +109,5 @@ Gunakan konteks ini untuk memberikan saran yang relevan. Jika pengguna meminta s
     }
   });
 
-  return result.toTextStreamResponse();
+  return result.toUIMessageStreamResponse();
 }

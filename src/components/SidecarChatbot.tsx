@@ -15,7 +15,7 @@ interface SidecarChatbotProps {
 
 export default function SidecarChatbot({ dnaData, isReady, activeModal }: SidecarChatbotProps) {
   
-  const { messages, sendMessage, append, status } = useChat({
+  const { messages, sendMessage, status } = useChat({
     transport: new DefaultChatTransport({
       api: '/api/chat',
       body: {
@@ -71,18 +71,18 @@ export default function SidecarChatbot({ dnaData, isReady, activeModal }: Sideca
       const lastMessage = messages[messages.length - 1];
       const lastText = lastMessage?.parts?.map(p => p.type === 'text' ? p.text : '').join('') || '';
       if (!lastText.includes('__PROACTIVE__')) {
-        append({
+        sendMessage({
           role: 'user',
           content: `__PROACTIVE__ User sedang membuka pengaturan ${activeModal}. Berikan 1 paragraf singkat (maksimal 3 kalimat) saran profesional terkait bagian ini berdasarkan data brand saat ini. Jangan bertanya balik, cukup beri insight.`
-        });
+        } as any);
       }
     }, 4000);
 
     return () => clearTimeout(timer);
-  }, [activeModal, append, messages]);
+  }, [activeModal, sendMessage, messages]);
 
   const visibleMessages = messages.filter(msg => {
-    const text = msg.parts?.map(p => p.type === 'text' ? p.text : '').join('') || (msg.content as string) || '';
+    const text = msg.parts?.map(p => p.type === 'text' ? p.text : '').join('') || '';
     return !(msg.role === 'user' && text.includes('__PROACTIVE__'));
   });
 
@@ -107,7 +107,7 @@ export default function SidecarChatbot({ dnaData, isReady, activeModal }: Sideca
       >
         <AnimatePresence initial={false}>
           {visibleMessages.map((msg) => {
-            const msgText = msg.parts?.map(p => p.type === 'text' ? p.text : '').join('') || (msg.content as string) || '';
+            const msgText = msg.parts?.map(p => p.type === 'text' ? p.text : '').join('') || '';
             return (
             <motion.div
               key={msg.id}

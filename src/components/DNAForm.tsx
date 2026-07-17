@@ -17,7 +17,7 @@ const POPULAR_FONTS = [
   "Nunito", "Raleway", "Ubuntu", "Rubik", "Work Sans", "Outfit"
 ];
 
-export default function DNAForm({ data, onChange }: DNAFormProps) {
+export default function DNAForm({ data, onChange, onModalChange }: DNAFormProps) {
   const [activeModal, setActiveModal] = useState<string | null>(null);
   const [fontSearch, setFontSearch] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);

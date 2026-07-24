@@ -27,6 +27,18 @@ async function createTable() {
     await client.query(createTableQuery);
     console.log('Table "ai_responses_cache" created or already exists.');
 
+    const createGeneratedContentQuery = `
+      CREATE TABLE IF NOT EXISTS generated_content (
+          id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+          brand_name TEXT NOT NULL,
+          video_url TEXT,
+          plan_data JSONB,
+          created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+      );
+    `;
+    await client.query(createGeneratedContentQuery);
+    console.log('Table "generated_content" created or already exists.');
+
     const enableRlsQuery = `
       ALTER TABLE ai_responses_cache ENABLE ROW LEVEL SECURITY;
     `;
@@ -46,6 +58,24 @@ async function createTable() {
     `;
     await client.query(createPolicyQuery);
     console.log('Policy "Allow public read/write to cache" created.');
+
+    const enableRlsQuery2 = `
+      ALTER TABLE generated_content ENABLE ROW LEVEL SECURITY;
+    `;
+    await client.query(enableRlsQuery2);
+
+    const dropPolicyQuery2 = `
+      DROP POLICY IF EXISTS "Allow public read/write to generated_content" ON generated_content;
+    `;
+    await client.query(dropPolicyQuery2);
+
+    const createPolicyQuery2 = `
+      CREATE POLICY "Allow public read/write to generated_content" 
+      ON generated_content FOR ALL 
+      USING (true) WITH CHECK (true);
+    `;
+    await client.query(createPolicyQuery2);
+    console.log('Policy "Allow public read/write to generated_content" created.');
 
     // Let's verify the table exists by inserting a test row and reading it
     const testHash = 'test_hash_123';

@@ -39,3 +39,21 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Local scratch and generated files
+clean-avatar-*.json
+dummy.mp4
+graphify-out/
+implementation_plan.md
+public/generations/
+public/logo/
+public/suno_error_*.png
+public/test_image.jpg
+puppeteer_test.ts
+scratch*.js
+scratch*.ts
+scratch*.ts.bak
+setup_codegen.ts
+state.json
+temp_skill.md
+test_cloudflare.ts

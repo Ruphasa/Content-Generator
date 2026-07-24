@@ -10,7 +10,8 @@ export async function GET(request: Request) {
     const supabase = await createClient()
     const { error } = await supabase.auth.exchangeCodeForSession(code)
     if (!error) {
-      return NextResponse.redirect(`${origin}${next}`)
+      // User asked to be redirected to login page after confirmation
+      return NextResponse.redirect(`${origin}/login?confirmed=true`)
     }
   }
 

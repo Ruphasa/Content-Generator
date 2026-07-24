@@ -2,13 +2,15 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { UploadCloud, Image as ImageIcon, Type, Palette, Hash, Target, AlignLeft, Search, Check, X, Compass } from 'lucide-react';
+import { UploadCloud, Image as ImageIcon, Type, Palette, Hash, Target, AlignLeft, Search, Check, X, Compass, Pencil, RefreshCw } from 'lucide-react';
 import { DNAData } from './ClientLayout';
+import { showSuccess, showError } from './Toast';
 
 interface DNAFormProps {
   data: DNAData;
   onChange: (field: keyof DNAData, value: any) => void;
   onModalChange?: (modalName: string | null) => void;
+  onOpenSyncModal?: (action?: 'dna' | 'visual' | 'assets' | 'all') => void;
 }
 
 const POPULAR_FONTS = [
@@ -54,22 +56,49 @@ const ModalWrapper = ({ title, children, isOpen, onClose, premium = false }: any
   </AnimatePresence>
 );
 
-export default function DNAForm({ data, onChange, onModalChange }: DNAFormProps) {
+const BentoBox = ({ title, icon: Icon, onClick, children, colSpan = 1, rowSpan = 1, className = "" }: any) => (
+  <motion.div 
+    whileHover={{ scale: 0.98, y: -4 }}
+    whileTap={onClick ? { scale: 0.96 } : undefined}
+    onClick={onClick}
+    className={`glass bg-white/70 hover:bg-white/95 ${onClick ? 'cursor-pointer' : 'cursor-text'} rounded-3xl p-6 border border-white/60 shadow-sm hover:shadow-xl transition-all duration-300 flex flex-col relative overflow-hidden group focus-within:ring-2 focus-within:ring-[var(--venturo-teal)] focus-within:border-transparent ${colSpan === 2 ? 'md:col-span-2' : ''} ${rowSpan === 2 ? 'md:row-span-2' : ''} ${className}`}
+  >
+    <div className="flex items-center justify-between w-full mb-4">
+      <div className="flex items-center gap-3 text-gray-400 group-hover:text-[var(--venturo-teal)] transition-colors">
+        <Icon className="w-5 h-5" />
+        <span className="text-sm font-bold uppercase tracking-widest">{title}</span>
+      </div>
+      <div className="opacity-0 group-hover:opacity-100 transition-opacity bg-[var(--venturo-teal)]/10 p-2 rounded-full text-[var(--venturo-teal)] hover:bg-[var(--venturo-teal)]/20">
+        <Pencil className="w-4 h-4" />
+      </div>
+    </div>
+    <div className="flex-1 flex flex-col w-full h-full relative z-10 pb-2">
+      {children}
+    </div>
+  </motion.div>
+);
+
+export default function DNAForm({ data, onChange, onModalChange, onOpenSyncModal }: DNAFormProps) {
   const [activeModal, setActiveModal] = useState<string | null>(null);
   const [fontSearch, setFontSearch] = useState('');
+  const [activeFontTab, setActiveFontTab] = useState<'primary' | 'secondary'>('primary');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    if (data.typography) {
-      const link = document.createElement('link');
-      link.href = `https://fonts.googleapis.com/css2?family=${data.typography.replace(/ /g, '+')}:wght@300;400;500;600;700&display=swap`;
-      link.rel = 'stylesheet';
-      document.head.appendChild(link);
-      return () => {
-        try { document.head.removeChild(link); } catch(e){}
-      };
-    }
-  }, [data.typography]);
+    const loadFont = (fontName: string) => {
+      if (!fontName) return;
+      const id = `font-${fontName.replace(/ /g, '-')}`;
+      if (!document.getElementById(id)) {
+        const link = document.createElement('link');
+        link.id = id;
+        link.href = `https://fonts.googleapis.com/css2?family=${fontName.replace(/ /g, '+')}:wght@300;400;500;600;700&display=swap`;
+        link.rel = 'stylesheet';
+        document.head.appendChild(link);
+      }
+    };
+    loadFont(data.primaryFont);
+    loadFont(data.secondaryFont);
+  }, [data.primaryFont, data.secondaryFont]);
 
   const setModal = (modalName: string | null) => {
     setActiveModal(modalName);
@@ -78,77 +107,81 @@ export default function DNAForm({ data, onChange, onModalChange }: DNAFormProps)
     }
   };
 
+  const handleFieldFocus = (fieldName: string, value: string) => {
+    if (onModalChange) {
+      onModalChange(`field_${fieldName}`);
+    }
+  };
+
   const closeModal = () => setModal(null);
 
-  const handleFileDrop = (e: React.DragEvent) => {
+
+  const fileToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = error => reject(error);
+    });
+  };
+
+  const handleFileDrop = async (e: React.DragEvent) => {
     e.preventDefault();
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
       const file = Array.from(e.dataTransfer.files).find(f => f.type.startsWith('image/'));
-      if (file) onChange('assets', [file]);
+      if (file) {
+        const base64 = await fileToBase64(file);
+        onChange('logoBase64', base64);
+      }
     }
   };
 
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
       const file = Array.from(e.target.files).find(f => f.type.startsWith('image/'));
-      if (file) onChange('assets', [file]);
+      if (file) {
+        const base64 = await fileToBase64(file);
+        onChange('logoBase64', base64);
+      }
     }
   };
 
-  const BentoBox = ({ title, icon: Icon, onClick, children, colSpan = 1, rowSpan = 1, className = "" }: any) => (
-    <motion.div 
-      whileHover={{ scale: 0.98, y: -4 }}
-      whileTap={{ scale: 0.96 }}
-      onClick={onClick}
-      className={`glass bg-white/70 hover:bg-white/95 cursor-pointer rounded-3xl p-6 border border-white/60 shadow-sm hover:shadow-xl transition-all duration-300 flex flex-col relative overflow-hidden group ${colSpan === 2 ? 'md:col-span-2' : ''} ${rowSpan === 2 ? 'md:row-span-2' : ''} ${className}`}
-    >
-      <div className="flex items-center gap-3 mb-4 text-gray-400 group-hover:text-[var(--venturo-teal)] transition-colors">
-        <Icon className="w-5 h-5" />
-        <span className="text-sm font-bold uppercase tracking-widest">{title}</span>
-      </div>
-      <div className="flex-1 flex flex-col w-full h-full">
-        {children}
-      </div>
-    </motion.div>
-  );
-
   return (
-    <div className="flex flex-col gap-6 w-full h-full text-gray-800 pb-10">
+    <div className="flex flex-col gap-6 w-full text-gray-800 pb-10">
       
       <motion.div 
         whileHover={{ scale: 0.99 }}
         onClick={() => setModal('brandName')}
         className="w-full flex flex-col gap-2 border-b border-gray-200/50 pb-8 cursor-pointer group px-2"
       >
-        <h1 className="text-5xl font-serif text-gray-900 group-hover:text-[var(--venturo-teal)] transition-colors tracking-tight">
-          {data.brandName || "Enter Brand Name..."}
-        </h1>
-        <p className="text-2xl font-light text-gray-500 italic group-hover:text-gray-600 transition-colors">
-          {data.tagline || "Slogan / Tagline..."}
-        </p>
+        <div className="flex items-center justify-between">
+          <div className="flex-1">
+            <h1 className="text-5xl font-serif text-gray-900 group-hover:text-[var(--venturo-teal)] transition-colors tracking-tight">
+              {data.brandName || "Enter Brand Name..."}
+            </h1>
+            <p className="text-2xl font-light text-gray-500 italic group-hover:text-gray-600 transition-colors">
+              {data.tagline || "Slogan / Tagline..."}
+            </p>
+          </div>
+        </div>
       </motion.div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
         
-        <BentoBox title="Logo" icon={ImageIcon} onClick={() => fileInputRef.current?.click()} className="group/logo text-center">
-           <div 
-             onDragOver={(e) => e.preventDefault()}
-             onDrop={handleFileDrop}
-             className="flex-1 flex items-center justify-center w-full h-full min-h-[120px]"
-           >
-             {data.assets && data.assets.length > 0 ? (
+        <BentoBox title="Logo" icon={ImageIcon} onClick={() => setModal('logo')} className="group/logo text-center">
+           <div className="flex-1 flex items-center justify-center w-full h-full min-h-[120px]">
+             {data.logoBase64 ? (
                 <div className="w-full h-full relative rounded-2xl overflow-hidden bg-gray-50 border border-gray-100 shadow-inner group-hover/logo:scale-105 transition-transform duration-500 flex items-center justify-center p-2">
-                  <img src={URL.createObjectURL(data.assets[0])} alt="Logo" className="max-w-full max-h-full object-contain drop-shadow-md" />
+                  <img src={data.logoBase64} alt="Logo" className="max-w-full max-h-full object-contain drop-shadow-md" />
                 </div>
              ) : (
                 <div className="flex flex-col items-center justify-center opacity-50 group-hover/logo:opacity-100 transition-opacity">
                   <div className="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center mb-3 group-hover/logo:bg-[var(--venturo-teal)]/10 transition-colors">
-                    <UploadCloud className="w-7 h-7 text-gray-400 group-hover/logo:text-[var(--venturo-teal)]" />
+                    <ImageIcon className="w-7 h-7 text-gray-400 group-hover/logo:text-[var(--venturo-teal)]" />
                   </div>
-                  <p className="text-xs font-semibold uppercase tracking-wider text-gray-500">Upload Logo</p>
+                  <p className="text-xs font-semibold uppercase tracking-wider text-gray-500">View Logo</p>
                 </div>
              )}
-             <input type="file" ref={fileInputRef} onChange={handleFileSelect} accept="image/*" className="hidden" />
            </div>
         </BentoBox>
 
@@ -166,75 +199,129 @@ export default function DNAForm({ data, onChange, onModalChange }: DNAFormProps)
         </BentoBox>
 
         <BentoBox title="Typography" icon={Type} onClick={() => setModal('typography')}>
-           <div className="flex flex-1 flex-col justify-center items-center h-full w-full bg-gradient-to-br from-gray-50 to-gray-100/50 rounded-2xl border border-gray-100">
-             <div className="text-6xl text-gray-800 tracking-tighter" style={{ fontFamily: data.typography || 'inherit' }}>Aa</div>
-             <div className="text-sm font-medium mt-3 bg-white px-3 py-1 rounded-full shadow-sm text-gray-600">{data.typography || "Pilih Font"}</div>
-           </div>
-        </BentoBox>
-
-        <BentoBox title="Brand Story" icon={AlignLeft} onClick={() => setModal('overview')} colSpan={2}>
-           {data.brandOverview ? (
-             <p className="text-gray-700 text-base leading-relaxed line-clamp-4 font-serif">{data.brandOverview}</p>
-           ) : (
-             <div className="flex h-full items-center">
-               <p className="text-gray-400 text-sm italic">Ceritakan kisah di balik brand Anda di sini...</p>
+           <div className="flex flex-1 items-center justify-center gap-4 mt-2">
+             <div className="flex-1 flex flex-col items-center gap-1 justify-center h-full bg-gradient-to-br from-gray-50 to-gray-100/50 rounded-2xl border border-gray-100 p-2">
+               <div className="text-3xl text-gray-800 tracking-tighter" style={{ fontFamily: data.primaryFont || 'inherit' }}>Aa</div>
+               <div className="text-[10px] font-medium mt-1 bg-white px-2 py-0.5 rounded-full shadow-sm text-gray-600 truncate max-w-full">{data.primaryFont || "Primary"}</div>
              </div>
-           )}
-        </BentoBox>
-
-        <BentoBox title="Visi & Misi" icon={Compass} onClick={() => setModal('visiMisi')}>
-           <div className="flex flex-col gap-4 h-full">
-             <div className="bg-[var(--venturo-teal)]/5 p-4 rounded-2xl border border-[var(--venturo-teal)]/10 flex-1 flex flex-col justify-center">
-               <span className="text-[10px] font-black text-[var(--venturo-teal)] uppercase mb-1 tracking-widest">Visi</span>
-               <p className="text-xs text-gray-700 font-medium line-clamp-2">{data.visi || "Belum ada visi..."}</p>
-             </div>
-             <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100 flex-1 flex flex-col justify-center">
-               <span className="text-[10px] font-black text-gray-400 uppercase mb-1 tracking-widest">Misi</span>
-               <p className="text-xs text-gray-600 font-medium line-clamp-2">{data.misi || "Belum ada misi..."}</p>
+             <div className="flex-1 flex flex-col items-center gap-1 justify-center h-full bg-gradient-to-br from-gray-50 to-gray-100/50 rounded-2xl border border-gray-100 p-2">
+               <div className="text-3xl text-gray-800 tracking-tighter" style={{ fontFamily: data.secondaryFont || 'inherit' }}>Aa</div>
+              <div className="text-[10px] font-medium mt-1 bg-white px-2 py-0.5 rounded-full shadow-sm text-gray-600 truncate max-w-full">{data.secondaryFont || "Secondary"}</div>
              </div>
            </div>
         </BentoBox>
 
-        <BentoBox title="Tone & Audience" icon={Target} onClick={() => setModal('tone')}>
-           <div className="space-y-5 flex flex-col h-full justify-center">
-              <div>
+        <BentoBox title="Brand Story" icon={AlignLeft} colSpan={1} className="min-h-[280px]">
+           <div className="flex flex-col h-full">
+             <textarea 
+               value={data.brandOverview || ''} 
+               onChange={e => onChange('brandOverview', e.target.value)} 
+               onFocus={() => handleFieldFocus('Brand Story', data.brandOverview)}
+               maxLength={250}
+               className="w-full h-full flex-1 resize-none bg-transparent border-none outline-none focus:outline-none focus:ring-0 focus:border-transparent p-0 text-sm text-gray-800 font-medium leading-relaxed custom-scrollbar"
+               placeholder="Ceritakan sejarah atau apa yang membuat brand Anda unik (Maks 250 karakter)..."
+             />
+             <div className="text-right text-[10px] text-gray-400 mt-2">
+               {(data.brandOverview || '').length}/250
+             </div>
+           </div>
+        </BentoBox>
+
+        <BentoBox title="Visi & Misi" icon={Compass} colSpan={2} className="min-h-[280px]">
+           <div className="flex gap-4 h-full">
+             <div className="bg-[var(--venturo-teal)]/5 p-4 rounded-2xl border border-[var(--venturo-teal)]/10 flex-1 flex flex-col justify-start">
+               <span className="text-[10px] font-black text-[var(--venturo-teal)] uppercase mb-2 tracking-widest">Visi</span>
+               <textarea 
+                 value={data.visi || ''}
+                 onChange={e => onChange('visi', e.target.value)}
+                 onFocus={() => handleFieldFocus('Visi', data.visi)}
+                 placeholder="Belum ada visi..."
+                 className="w-full h-full flex-1 resize-none bg-transparent border-none outline-none focus:outline-none focus:ring-0 focus:border-transparent p-0 text-sm text-gray-700 font-medium custom-scrollbar"
+               />
+             </div>
+             <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100 flex-1 flex flex-col justify-start">
+               <span className="text-[10px] font-black text-gray-400 uppercase mb-2 tracking-widest">Misi</span>
+               <textarea 
+                 value={data.misi || ''}
+                 onChange={e => onChange('misi', e.target.value)}
+                 onFocus={() => handleFieldFocus('Misi', data.misi)}
+                 placeholder="Belum ada misi..."
+                 className="w-full h-full flex-1 resize-none bg-transparent border-none outline-none focus:outline-none focus:ring-0 focus:border-transparent p-0 text-sm text-gray-600 font-medium custom-scrollbar"
+               />
+             </div>
+           </div>
+        </BentoBox>
+
+        <BentoBox title="Tone & Audience" icon={Target} className="min-h-[360px]">
+           <div className="space-y-6 flex flex-col justify-center h-full">
+              <div className="flex-1 flex flex-col">
                 <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-2">Audience</span>
-                <p className="text-lg font-bold text-gray-800 leading-tight">{data.targetAudience || "Semua Kalangan"}</p>
+                <textarea 
+                  value={data.targetAudience || ''}
+                  onChange={e => onChange('targetAudience', e.target.value)}
+                  onFocus={() => handleFieldFocus('Audience', data.targetAudience)}
+                  placeholder="Semua Kalangan"
+                  className="w-full h-full flex-1 resize-none bg-transparent border-none outline-none focus:outline-none focus:ring-0 focus:border-transparent p-0 text-sm font-bold text-gray-800 leading-tight custom-scrollbar"
+                />
               </div>
-              <div>
-                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-2">Tone</span>
-                <div className="flex flex-wrap gap-2">
-                  {(data.tone || "Profesional").split(',').map((t, i) => (
-                    <span key={i} className="px-3 py-1 bg-[var(--venturo-teal)]/10 text-[var(--venturo-teal)] font-semibold rounded-full text-xs shadow-sm border border-[var(--venturo-teal)]/20">{t.trim()}</span>
-                  ))}
-                </div>
+              <div className="flex-1 flex flex-col">
+                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-2">Tone (pisahkan koma)</span>
+                <textarea 
+                  value={data.tone || ''}
+                  onChange={e => onChange('tone', e.target.value)}
+                  onFocus={() => handleFieldFocus('Tone', data.tone)}
+                  placeholder="Profesional, Santai..."
+                  className="w-full h-full flex-1 resize-none bg-transparent border-none outline-none focus:outline-none focus:ring-0 focus:border-transparent p-0 text-sm text-gray-700 custom-scrollbar"
+                />
               </div>
            </div>
         </BentoBox>
 
-        <BentoBox title="Content Strategy" icon={Hash} onClick={() => setModal('contentStrategy')} colSpan={2}>
+        <BentoBox title="Content Strategy" icon={Hash} colSpan={2} className="min-h-[360px]">
           <div className="grid grid-cols-2 gap-6 h-full">
-             <div className="flex flex-col justify-center space-y-4">
-               <div>
+             <div className="flex flex-col justify-center space-y-6 h-full">
+               <div className="flex-1 flex flex-col">
                  <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-2">Key Vocabulary</span>
-                 <p className="text-sm text-gray-800 font-medium leading-relaxed line-clamp-2">{data.keyVocabulary || "Kata kunci positif..."}</p>
+                 <textarea 
+                   value={data.keyVocabulary || ''}
+                   onChange={e => onChange('keyVocabulary', e.target.value)}
+                   onFocus={() => handleFieldFocus('Key Vocabulary', data.keyVocabulary)}
+                   placeholder="Kata-kata kunci..."
+                   className="w-full h-full flex-1 resize-none bg-transparent border-none outline-none focus:outline-none focus:ring-0 focus:border-transparent p-0 text-sm text-gray-700 custom-scrollbar"
+                 />
                </div>
-               <div>
+               <div className="flex-1 flex flex-col">
                  <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-2">Banned Content</span>
-                 <p className="text-sm text-red-500 font-medium leading-relaxed line-clamp-1">{data.bannedContent || "Tidak ada..."}</p>
+                 <textarea 
+                   value={data.bannedContent || ''}
+                   onChange={e => onChange('bannedContent', e.target.value)}
+                   onFocus={() => handleFieldFocus('Banned Content', data.bannedContent)}
+                   placeholder="Hal yang harus dihindari..."
+                   className="w-full h-full flex-1 resize-none bg-transparent border-none outline-none focus:outline-none focus:ring-0 focus:border-transparent p-0 text-sm text-gray-700 custom-scrollbar"
+                 />
                </div>
              </div>
-             <div className="flex flex-col justify-center space-y-4">
-               <div>
-                 <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-2">Standard CTA</span>
-                 <div className="bg-gray-900 text-white p-3 rounded-xl inline-block text-sm font-semibold shadow-lg">
-                   {data.standardCTA || "Link in bio"}
-                 </div>
-               </div>
-               <div>
-                 <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-2">Hashtags</span>
-                 <p className="text-sm text-[var(--venturo-teal)] font-medium">{data.hashtagStyle || "#Brand"}</p>
-               </div>
+             <div className="flex flex-col justify-center space-y-6 h-full">
+                <div className="flex-1 flex flex-col">
+                  <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-2">Standard CTA</span>
+                  <textarea 
+                    value={data.standardCTA || ''}
+                    onChange={e => onChange('standardCTA', e.target.value)}
+                    onFocus={() => handleFieldFocus('Standard CTA', data.standardCTA)}
+                    placeholder="Link in bio"
+                    className="w-full h-full flex-1 resize-none bg-gray-900 text-white p-3 rounded-xl text-sm font-semibold shadow-lg focus:outline-none focus:ring-2 focus:ring-[var(--venturo-teal)] custom-scrollbar"
+                  />
+                </div>
+                <div className="flex-1 flex flex-col">
+                  <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-2">Hashtags</span>
+                  <textarea 
+                    value={data.hashtagStyle || ''}
+                    onChange={e => onChange('hashtagStyle', e.target.value)}
+                    onFocus={() => handleFieldFocus('Hashtags', data.hashtagStyle)}
+                    placeholder="#Brand"
+                    className="w-full h-full flex-1 resize-none bg-transparent border-none outline-none focus:outline-none focus:ring-0 focus:border-transparent p-0 text-sm font-bold text-[var(--venturo-teal)] tracking-wide custom-scrollbar"
+                  />
+                </div>
              </div>
           </div>
         </BentoBox>
@@ -291,6 +378,34 @@ export default function DNAForm({ data, onChange, onModalChange }: DNAFormProps)
 
       <ModalWrapper title="Typography Collection" isOpen={activeModal === 'typography'} onClose={closeModal} premium>
         <div className="space-y-6">
+          <div className="flex gap-4">
+            <div 
+              onClick={() => setActiveFontTab('primary')}
+              className={`flex-1 p-4 rounded-2xl border-2 cursor-pointer transition-all flex flex-col justify-center ${
+                activeFontTab === 'primary' ? 'border-[var(--venturo-teal)] bg-white shadow-md' : 'border-transparent bg-gray-100/50 hover:bg-gray-100'
+              }`}
+            >
+              <span className={`text-[10px] font-bold uppercase tracking-widest block mb-2 ${activeFontTab === 'primary' ? 'text-[var(--venturo-teal)]' : 'text-gray-400'}`}>Primary Font</span>
+              <div className="flex items-center gap-4">
+                <span className="text-4xl text-gray-800 tracking-tighter leading-none" style={{ fontFamily: data.primaryFont || 'inherit' }}>Aa</span>
+                <span className="font-semibold text-gray-700">{data.primaryFont || 'Select Font'}</span>
+              </div>
+            </div>
+            
+            <div 
+              onClick={() => setActiveFontTab('secondary')}
+              className={`flex-1 p-4 rounded-2xl border-2 cursor-pointer transition-all flex flex-col justify-center ${
+                activeFontTab === 'secondary' ? 'border-[var(--venturo-teal)] bg-white shadow-md' : 'border-transparent bg-gray-100/50 hover:bg-gray-100'
+              }`}
+            >
+              <span className={`text-[10px] font-bold uppercase tracking-widest block mb-2 ${activeFontTab === 'secondary' ? 'text-[var(--venturo-teal)]' : 'text-gray-400'}`}>Secondary Font</span>
+              <div className="flex items-center gap-4">
+                <span className="text-4xl text-gray-800 tracking-tighter leading-none" style={{ fontFamily: data.secondaryFont || 'inherit' }}>Aa</span>
+                <span className="font-semibold text-gray-700">{data.secondaryFont || 'Select Font'}</span>
+              </div>
+            </div>
+          </div>
+          
           <div className="relative">
             <Search className="w-5 h-5 absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
             <input 
@@ -301,15 +416,16 @@ export default function DNAForm({ data, onChange, onModalChange }: DNAFormProps)
               className="w-full pl-12 pr-6 py-4 text-lg rounded-2xl bg-white border-2 border-transparent focus:border-[var(--venturo-teal)] shadow-sm focus:shadow-md outline-none transition-all font-medium text-gray-700 placeholder:text-gray-300"
             />
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-h-[50vh] overflow-y-auto p-1 pb-4 custom-scrollbar">
+          
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-h-[340px] overflow-y-auto p-1 pb-4 custom-scrollbar">
             {POPULAR_FONTS.filter(f => f.toLowerCase().includes(fontSearch.toLowerCase())).map(font => {
-              const isSelected = data.typography === font;
+              const isSelected = activeFontTab === 'primary' ? data.primaryFont === font : data.secondaryFont === font;
               return (
                 <motion.div 
                   key={font}
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
-                  onClick={() => onChange('typography', font)}
+                  onClick={() => onChange(activeFontTab === 'primary' ? 'primaryFont' : 'secondaryFont', font)}
                   className={`p-6 rounded-3xl cursor-pointer transition-all flex flex-col relative overflow-hidden ${isSelected ? 'bg-gradient-to-br from-[var(--venturo-teal)] to-[var(--venturo-dark)] text-white shadow-xl shadow-teal-500/20' : 'bg-white border border-gray-100 hover:border-gray-300 hover:shadow-lg text-gray-800'}`}
                 >
                   <div className="absolute -right-4 -bottom-4 text-9xl opacity-[0.03] pointer-events-none font-bold" style={{ fontFamily: font }}>Aa</div>
@@ -328,60 +444,28 @@ export default function DNAForm({ data, onChange, onModalChange }: DNAFormProps)
         </div>
       </ModalWrapper>
 
-      <ModalWrapper title="Brand Story" isOpen={activeModal === 'overview'} onClose={closeModal}>
-        <div className="space-y-4">
-          <label className="block text-sm font-bold text-gray-700 mb-2 uppercase tracking-wide">Tell Us About Your Brand</label>
-          <textarea value={data.brandOverview} onChange={e => onChange('brandOverview', e.target.value)} className="w-full px-5 py-4 rounded-2xl bg-gray-50 border-2 border-gray-100 focus:outline-none focus:bg-white focus:border-[var(--venturo-teal)] transition-all min-h-[200px] resize-y text-base font-serif leading-relaxed shadow-inner" placeholder="Ceritakan sejarah, produk, layanan, dan nilai unik yang Anda tawarkan..." />
-        </div>
-      </ModalWrapper>
-
-      <ModalWrapper title="Visi & Misi" isOpen={activeModal === 'visiMisi'} onClose={closeModal}>
-        <div className="grid grid-cols-1 gap-6">
-          <div className="group">
-            <label className="block text-sm font-bold text-gray-700 mb-2 uppercase tracking-wide text-[var(--venturo-teal)]">Visi (Vision)</label>
-            <textarea value={data.visi} onChange={e => onChange('visi', e.target.value)} className="w-full px-5 py-4 rounded-2xl bg-gray-50 border-2 border-gray-100 focus:outline-none focus:bg-white focus:border-[var(--venturo-teal)] transition-all min-h-[120px] resize-none text-base shadow-inner" placeholder="Kemana arah brand Anda di masa depan?..." />
-          </div>
-          <div className="group">
-            <label className="block text-sm font-bold text-gray-700 mb-2 uppercase tracking-wide text-gray-500">Misi (Mission)</label>
-            <textarea value={data.misi} onChange={e => onChange('misi', e.target.value)} className="w-full px-5 py-4 rounded-2xl bg-gray-50 border-2 border-gray-100 focus:outline-none focus:bg-white focus:border-gray-400 transition-all min-h-[120px] resize-none text-base shadow-inner" placeholder="Bagaimana cara Anda mencapai visi tersebut?..." />
-          </div>
-        </div>
-      </ModalWrapper>
-
-      <ModalWrapper title="Audience & Tone of Voice" isOpen={activeModal === 'tone'} onClose={closeModal}>
-        <div className="space-y-6">
-          <div className="group">
-            <label className="block text-sm font-bold text-gray-700 mb-2 uppercase tracking-wide">Target Audience</label>
-            <input type="text" value={data.targetAudience} onChange={e => onChange('targetAudience', e.target.value)} className="w-full px-5 py-4 rounded-2xl bg-gray-50 border-2 border-gray-100 focus:outline-none focus:bg-white focus:border-[var(--venturo-teal)] transition-all text-base shadow-inner" placeholder="Contoh: Profesional Muda usia 25-35..." />
-          </div>
-          <div className="group">
-            <label className="block text-sm font-bold text-gray-700 mb-2 uppercase tracking-wide">Tone of Voice</label>
-            <input type="text" value={data.tone} onChange={e => onChange('tone', e.target.value)} className="w-full px-5 py-4 rounded-2xl bg-gray-50 border-2 border-gray-100 focus:outline-none focus:bg-white focus:border-[var(--venturo-teal)] transition-all text-base shadow-inner" placeholder="Contoh: Profesional, Casual, Friendly (pisahkan koma)" />
-            <p className="text-xs text-gray-400 mt-2 ml-1">Ini akan menentukan gaya bahasa AI saat meng-generate konten Anda.</p>
-          </div>
-        </div>
-      </ModalWrapper>
-
-      <ModalWrapper title="Content Strategy" isOpen={activeModal === 'contentStrategy'} onClose={closeModal}>
-        <div className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="group">
-              <label className="block text-sm font-bold text-gray-700 mb-2 uppercase tracking-wide">Key Vocabulary</label>
-              <textarea value={data.keyVocabulary} onChange={e => onChange('keyVocabulary', e.target.value)} className="w-full px-5 py-4 rounded-2xl bg-[var(--venturo-teal)]/5 border-2 border-[var(--venturo-teal)]/20 focus:outline-none focus:bg-white focus:border-[var(--venturo-teal)] transition-all min-h-[120px] resize-none text-sm shadow-inner" placeholder="Kata-kata andalan yang harus sering muncul..." />
+      <ModalWrapper title="Logo Assets" isOpen={activeModal === 'logo'} onClose={closeModal}>
+        <div 
+          onDragOver={(e) => e.preventDefault()}
+          onDrop={handleFileDrop}
+          onClick={() => fileInputRef.current?.click()}
+          className="flex flex-col items-center justify-center w-full min-h-[300px] border-2 border-dashed border-[var(--venturo-teal)]/50 rounded-3xl bg-gray-50/50 hover:bg-gray-50 cursor-pointer transition-colors group"
+        >
+          {data.logoBase64 ? (
+            <div className="w-full h-full relative p-6 flex flex-col items-center justify-center gap-4">
+              <img src={data.logoBase64} alt="Logo" className="max-w-[200px] max-h-[200px] object-contain drop-shadow-md" />
+              <p className="text-sm text-gray-500 font-medium group-hover:text-[var(--venturo-teal)] transition-colors">Click or drag to replace logo</p>
             </div>
-            <div className="group">
-              <label className="block text-sm font-bold text-red-700 mb-2 uppercase tracking-wide">Banned Content</label>
-              <textarea value={data.bannedContent} onChange={e => onChange('bannedContent', e.target.value)} className="w-full px-5 py-4 rounded-2xl bg-red-50 border-2 border-red-100 focus:outline-none focus:bg-white focus:border-red-400 transition-all min-h-[120px] resize-none text-sm shadow-inner" placeholder="Kata/topik tabu yang dilarang muncul..." />
+          ) : (
+            <div className="flex flex-col items-center justify-center opacity-70 group-hover:opacity-100 transition-opacity p-8">
+              <div className="w-20 h-20 rounded-full bg-white shadow-sm flex items-center justify-center mb-4 group-hover:bg-[var(--venturo-teal)]/10 transition-colors">
+                <UploadCloud className="w-10 h-10 text-gray-400 group-hover:text-[var(--venturo-teal)]" />
+              </div>
+              <p className="text-lg font-bold text-gray-700 mb-2">Upload your logo</p>
+              <p className="text-sm text-gray-400 text-center max-w-sm">Drag and drop your logo here, or click to browse files. Recommended format: PNG or SVG with transparent background.</p>
             </div>
-          </div>
-          <div className="group">
-            <label className="block text-sm font-bold text-gray-700 mb-2 uppercase tracking-wide">Standard Call-To-Action (CTA)</label>
-            <input type="text" value={data.standardCTA} onChange={e => onChange('standardCTA', e.target.value)} className="w-full px-5 py-4 rounded-2xl bg-gray-50 border-2 border-gray-100 focus:outline-none focus:bg-white focus:border-[var(--venturo-teal)] transition-all text-sm shadow-inner" placeholder="Contoh: Kunjungi link di bio kami sekarang!" />
-          </div>
-          <div className="group">
-            <label className="block text-sm font-bold text-gray-700 mb-2 uppercase tracking-wide">Hashtag Style</label>
-            <input type="text" value={data.hashtagStyle} onChange={e => onChange('hashtagStyle', e.target.value)} className="w-full px-5 py-4 rounded-2xl bg-gray-50 border-2 border-gray-100 focus:outline-none focus:bg-white focus:border-[var(--venturo-teal)] transition-all text-sm shadow-inner" placeholder="Contoh: #Venturo #Innovation (3-5 tags)" />
-          </div>
+          )}
+          <input type="file" ref={fileInputRef} onChange={handleFileSelect} accept="image/*" className="hidden" />
         </div>
       </ModalWrapper>
 

@@ -3,8 +3,8 @@
 :root {
   --background: #f0f4f8;
   --foreground: #171717;
-  --venturo-teal: #009BAD;
-  --venturo-dark: #006D79;
+  --venturo-teal: #00A76F;
+  --venturo-dark: #007867;
 }
 
 @theme inline {
@@ -12,9 +12,27 @@
   --color-foreground: var(--foreground);
   --color-venturo-teal: var(--venturo-teal);
   --color-venturo-dark: var(--venturo-dark);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-  --font-serif: var(--font-playfair);
+  
+  /* Skeleton extracted colors */
+  --color-primary-main: #00A76F;
+  --color-primary-light: #5BE49B;
+  --color-primary-dark: #007867;
+  
+  --color-secondary-main: #8E33FF;
+  --color-secondary-light: #C684FF;
+  --color-secondary-dark: #5119B7;
+
+  --color-info-main: #00B8D9;
+  --color-success-main: #22C55E;
+  --color-warning-main: #FFAB00;
+  --color-error-main: #FF5630;
+  
+  /* Fonts */
+  --font-public-sans: "Public Sans Variable", sans-serif;
+  --font-barlow: "Barlow", sans-serif;
+  
+  --font-sans: var(--font-public-sans);
+  --font-serif: var(--font-barlow);
 }
 
 @media (prefers-color-scheme: dark) {

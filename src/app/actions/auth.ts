@@ -3,13 +3,14 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { revalidatePath } from 'next/cache'
+import { headers } from 'next/headers'
 
 export async function login(formData: FormData) {
   const email = formData.get('email') as string
   const password = formData.get('password') as string
 
   if (!email || !password) {
-    return { error: 'Email dan password harus diisi' }
+    redirect('/login?error=' + encodeURIComponent('Email dan password harus diisi'))
   }
 
   const supabase = await createClient()
@@ -20,7 +21,7 @@ export async function login(formData: FormData) {
   })
 
   if (error) {
-    return { error: error.message }
+    redirect('/login?error=' + encodeURIComponent(error.message))
   }
 
   revalidatePath('/', 'layout')
@@ -32,18 +33,22 @@ export async function signup(formData: FormData) {
   const password = formData.get('password') as string
 
   if (!email || !password) {
-    return { error: 'Email dan password harus diisi' }
+    redirect('/register?error=' + encodeURIComponent('Email dan password harus diisi'))
   }
 
   const supabase = await createClient()
+  const origin = (await headers()).get('origin') || 'http://localhost:3000'
 
   const { error } = await supabase.auth.signUp({
     email,
     password,
+    options: {
+      emailRedirectTo: `${origin}/auth/callback`,
+    }
   })
 
   if (error) {
-    return { error: error.message }
+    redirect('/register?error=' + encodeURIComponent(error.message))
   }
 
   // Redirect to login after successful registration (or to confirm email page)

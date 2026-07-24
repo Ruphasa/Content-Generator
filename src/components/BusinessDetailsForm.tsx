@@ -22,13 +22,13 @@ export default function BusinessDetailsForm({ data, onChange }: BusinessDetailsF
   ];
 
   return (
-    <div className="flex flex-col gap-6 w-full h-full text-gray-800">
+    <div className="flex flex-col gap-6 w-full text-gray-800 pb-10">
       
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {fields.map((field, idx) => (
           <div 
             key={idx} 
-            className={`glass bg-white/40 border border-white/50 rounded-xl p-4 flex items-center relative transition-all focus-within:ring-2 focus-within:ring-[var(--venturo-teal)] ${
+            className={`glass bg-white/40 border border-white/50 rounded-xl p-4 flex items-center relative transition-all focus-within:ring-2 focus-within:ring-[var(--venturo-teal)] group cursor-text ${
               field.key === 'testimonials' ? 'md:col-span-2' : ''
             }`}
           >
@@ -44,7 +44,7 @@ export default function BusinessDetailsForm({ data, onChange }: BusinessDetailsF
                 className="w-full bg-transparent border-none outline-none text-sm font-medium text-gray-700 placeholder:text-gray-400 placeholder:font-normal"
               />
             </div>
-            <div className="w-8 h-8 rounded-full bg-[var(--venturo-teal)]/10 flex items-center justify-center text-[var(--venturo-teal)] absolute right-4 cursor-pointer hover:bg-[var(--venturo-teal)]/20 transition-colors">
+            <div className="opacity-0 group-hover:opacity-100 w-8 h-8 rounded-full bg-[var(--venturo-teal)]/10 flex items-center justify-center text-[var(--venturo-teal)] absolute right-4 transition-all">
               <Pencil className="w-4 h-4" />
             </div>
           </div>

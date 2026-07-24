@@ -2,6 +2,7 @@ import { createGroq } from '@ai-sdk/groq';
 import { streamText } from 'ai';
 import { createClient } from '@supabase/supabase-js';
 import crypto from 'crypto';
+import { customGroq } from '@/lib/groq';
 
 export const maxDuration = 30;
 
@@ -12,18 +13,24 @@ export async function POST(req: Request) {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   const supabase = supabaseUrl && supabaseKey ? createClient(supabaseUrl, supabaseKey) : null;
-  const { messages, data } = await req.json();
-
+  const json = await req.json();
+  const messages = json.messages;
+  let requestData = json.data || {};
+  console.log("INCOMING PAYLOAD:", JSON.stringify(json, null, 2));
   let dnaContext = "";
-  if (data && data.dnaData) {
+  if (requestData && requestData.dnaState) {
     dnaContext = `
 Kontek Klien Saat Ini (DNA Form State):
-- Brand Name: ${data.dnaData.brandName || "Belum diisi"}
-- Category: ${data.dnaData.category || "Belum diisi"}
-- Core Identity: ${data.dnaData.coreIdentity || "Belum diisi"}
-- Audience: ${data.dnaData.audience || "Belum diisi"}
-- Tone: ${data.dnaData.tone || "Belum diisi"}
-- Font: ${data.dnaData.font || "Belum diisi"}
+- Brand Name: ${requestData.dnaState.brandName || "Belum diisi"}
+- Brand Overview: ${requestData.dnaState.brandOverview || "Belum diisi"}
+- Visi: ${requestData.dnaState.visi || "Belum diisi"}
+- Misi: ${requestData.dnaState.misi || "Belum diisi"}
+- Target Audience: ${requestData.dnaState.targetAudience || "Belum diisi"}
+- Tone of Voice: ${requestData.dnaState.tone || "Belum diisi"}
+- Primary Font: ${requestData.dnaState.primaryFont || "Belum diisi"}
+- Secondary Font: ${requestData.dnaState.secondaryFont || "Belum diisi"}
+- Primary Color: ${requestData.dnaState.primaryColor || "Belum diisi"}
+- Secondary Color: ${requestData.dnaState.secondaryColor || "Belum diisi"}
 `;
   }
 
@@ -34,8 +41,34 @@ Kontek Klien Saat Ini (DNA Form State):
 
   // Caching Logic
   // We hash the system context + the latest user message to find identical queries
-  const latestMessage = sanitizedMessages[sanitizedMessages.length - 1]?.content || "";
-  const rawString = dnaContext + latestMessage;
+  let latestMessageContent = sanitizedMessages[sanitizedMessages.length - 1]?.content || "";
+  try {
+    const parsed = JSON.parse(latestMessageContent);
+    if (parsed.text) latestMessageContent = parsed.text;
+    if (parsed.dnaState) {
+      requestData.dnaState = parsed.dnaState;
+      dnaContext = `
+Kontek Klien Saat Ini (DNA Form State):
+- Brand Name: ${requestData.dnaState.brandName || "Belum diisi"}
+- Brand Overview: ${requestData.dnaState.brandOverview || "Belum diisi"}
+- Visi: ${requestData.dnaState.visi || "Belum diisi"}
+- Misi: ${requestData.dnaState.misi || "Belum diisi"}
+- Target Audience: ${requestData.dnaState.targetAudience || "Belum diisi"}
+- Tone of Voice: ${requestData.dnaState.tone || "Belum diisi"}
+- Primary Font: ${requestData.dnaState.primaryFont || "Belum diisi"}
+- Secondary Font: ${requestData.dnaState.secondaryFont || "Belum diisi"}
+- Primary Color: ${requestData.dnaState.primaryColor || "Belum diisi"}
+- Secondary Color: ${requestData.dnaState.secondaryColor || "Belum diisi"}
+`;
+    }
+  } catch(e) {}
+  
+  // Override the last message content so the LLM doesn't see raw JSON
+  if (sanitizedMessages.length > 0) {
+    sanitizedMessages[sanitizedMessages.length - 1].content = latestMessageContent;
+  }
+
+  const rawString = dnaContext + latestMessageContent;
   const hash = crypto.createHash('sha256').update(rawString).digest('hex');
 
   console.log("rawString for hash:", rawString);
@@ -52,28 +85,13 @@ Kontek Klien Saat Ini (DNA Form State):
     if (cacheData && cacheData.response_text) {
       console.log("CACHE HIT! Returning stored response.");
       
-      // Simulate a streaming response for the UI
-      // We yield words one by one to trick the frontend into thinking it's typing
-      const words = cacheData.response_text.split(' ');
-      
-      const stream = new ReadableStream({
-        async start(controller) {
-          for (let i = 0; i < words.length; i++) {
-            // DefaultChatTransport with toUIMessageStreamResponse expects text-delta format
-            controller.enqueue(new TextEncoder().encode(`data: {"type":"text-delta","id":"cache-0","delta":${JSON.stringify(words[i] + (i < words.length - 1 ? ' ' : ''))}}\n\n`));
-            await new Promise((resolve) => setTimeout(resolve, 20)); // simulated delay
-          }
-          controller.enqueue(new TextEncoder().encode(`data: {"type":"finish-step"}\n\n`));
-          controller.enqueue(new TextEncoder().encode(`data: {"type":"finish","finishReason":"stop"}\n\n`));
-          controller.close();
-        }
+      // Simulate the stream using the actual LLM (Fast Path) to guarantee perfect compatibility with the frontend's useChat
+      const cacheResult = streamText({
+        model: customGroq('llama-3.3-70b-versatile'),
+        system: "Kamu adalah sistem pemroses teks otomatis. Tugasmu hanya satu: keluarkan teks yang diberikan oleh user sama persis, tanpa ditambahi pembukaan, penutup, atau tanda kutip tambahan.",
+        messages: [{ role: 'user', content: cacheData.response_text }]
       });
-
-      return new Response(stream, {
-        headers: {
-          'Content-Type': 'text/event-stream; charset=utf-8',
-        },
-      });
+      return (cacheResult as any).toUIMessageStreamResponse();
       }
     }
   } catch (e) {
@@ -83,13 +101,31 @@ Kontek Klien Saat Ini (DNA Form State):
 
   console.log("CACHE MISS! Calling Groq LLM.");
 
-  const customGroq = createGroq({
-    apiKey: process.env.LLM_API_KEY || process.env.GROQ_API_KEY,
-  });
+  const systemPrompt = `Kamu adalah asisten AI (Copilot) untuk aplikasi pembuat video otomatis. 
+${dnaContext}
+
+Gunakan konteks ini untuk memberikan saran yang relevan. Jika pengguna meminta saran font, warna, visi, misi, atau konten, berikan rekomendasi berdasarkan Category dan Tone mereka. Jangan menyebutkan bahwa kamu melihat form state ini secara eksplisit. Gunakan bahasa Indonesia yang santai, profesional, dan menyenangkan (seperti style Venturo).
+
+PENTING: Jika kamu memberikan rekomendasi yang spesifik untuk di-apply ke form pengguna (seperti merekomendasikan Warna, Font, Visi, Misi, Slogan, atau Ide Konten), kamu WAJIB menyertakan blok JSON khusus di BARIS PALING AKHIR pesanmu. Gunakan tag [SUGGESTION_JSON] dan [/SUGGESTION_JSON] untuk mengapit JSON tersebut.
+Format JSON-nya (pilih field "colors", "font", atau "text"):
+[SUGGESTION_JSON]
+{
+  "type": "suggestion",
+  "field": "colors|font|text",
+  "options": [
+    {"primaryColor": "#HEX", "secondaryColor": "#HEX", "label": "Tema Warna 1"} // Jika field="colors"
+    // atau jika field="font"
+    // {"fontFamily": "Inter", "label": "Modern & Clean"}
+    // atau jika field="text"
+    // {"text": "Isi rekomendasi visi/misi/slogan", "label": "Opsi 1"}
+  ]
+}
+[/SUGGESTION_JSON]
+`;
 
   const result = streamText({
     model: customGroq('llama-3.3-70b-versatile'), 
-    system: `Kamu adalah asisten AI (Copilot) untuk aplikasi pembuat video otomatis. ${dnaContext}`,
+    system: systemPrompt,
     messages: sanitizedMessages,
     async onFinish({ text }) {
       // Save to cache after streaming is finished
@@ -109,5 +145,5 @@ Kontek Klien Saat Ini (DNA Form State):
     }
   });
 
-  return result.toUIMessageStreamResponse();
+  return (result as any).toUIMessageStreamResponse();
 }

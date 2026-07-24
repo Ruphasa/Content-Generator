@@ -2,14 +2,16 @@ import { signup } from '@/app/actions/auth'
 import Link from 'next/link'
 import { Sparkles, UserPlus } from 'lucide-react'
 
-export default function RegisterPage() {
-  return (
-    <div className="min-h-screen bg-[#f0f4f8] flex flex-col justify-center items-center p-4 relative overflow-hidden">
-      {/* Background Decorators */}
-      <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-[var(--venturo-teal)]/20 rounded-full blur-[120px] pointer-events-none" />
-      <div className="absolute bottom-[-10%] right-[-10%] w-[60%] h-[60%] bg-[var(--venturo-teal)]/10 rounded-full blur-[150px] pointer-events-none" />
+export default async function RegisterPage({ searchParams }: { searchParams: Promise<{ error?: string }> }) {
+  const { error } = await searchParams;
 
-      <div className="glass rounded-3xl p-8 w-full max-w-md relative z-10 shadow-2xl">
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-teal-50 flex flex-col justify-center items-center p-4 relative overflow-hidden">
+      {/* Background Decorators */}
+      <div className="absolute top-[-20%] left-[-10%] w-[70%] h-[70%] bg-gradient-to-br from-[var(--venturo-teal)]/40 to-blue-400/20 rounded-full blur-[120px] pointer-events-none mix-blend-multiply" />
+      <div className="absolute bottom-[-20%] right-[-10%] w-[60%] h-[60%] bg-gradient-to-br from-emerald-400/20 to-[var(--venturo-teal)]/40 rounded-full blur-[150px] pointer-events-none mix-blend-multiply" />
+
+      <div className="bg-white/40 backdrop-blur-xl border border-white/60 rounded-3xl p-8 w-full max-w-md relative z-10 shadow-[0_8px_32px_0_rgba(31,38,135,0.1)]">
         <div className="flex justify-center mb-6">
           <div className="w-12 h-12 rounded-full bg-gradient-to-r from-[var(--venturo-teal)] to-[var(--venturo-dark)] flex items-center justify-center">
             <Sparkles className="w-6 h-6 text-white" />
@@ -19,6 +21,12 @@ export default function RegisterPage() {
         <h2 className="text-2xl font-bold text-center text-gray-800 mb-2">Buat Akun Baru</h2>
         <p className="text-center text-gray-500 mb-8">Bergabunglah dan mulai ciptakan video AI tanpa batas.</p>
 
+        {error && (
+          <div className="bg-red-50 text-red-700 p-3 rounded-lg mb-6 text-sm text-center border border-red-200">
+            {error}
+          </div>
+        )}
+
         <form action={async (formData) => { "use server"; await signup(formData); }} className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
@@ -27,7 +35,7 @@ export default function RegisterPage() {
               type="email" 
               required
               placeholder="you@example.com"
-              className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[var(--venturo-teal)] transition-all"
+              className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[var(--venturo-teal)] transition-all text-gray-800 placeholder-gray-400"
             />
           </div>
           <div>
@@ -37,7 +45,7 @@ export default function RegisterPage() {
               type="password" 
               required
               placeholder="Minimal 6 karakter"
-              className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[var(--venturo-teal)] transition-all"
+              className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[var(--venturo-teal)] transition-all text-gray-800 placeholder-gray-400"
             />
           </div>
           

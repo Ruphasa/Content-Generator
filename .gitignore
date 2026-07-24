@@ -46,7 +46,6 @@ dummy.mp4
 graphify-out/
 implementation_plan.md
 public/generations/
-public/logo/
 public/suno_error_*.png
 public/test_image.jpg
 puppeteer_test.ts

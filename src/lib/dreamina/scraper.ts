@@ -50,22 +50,7 @@ export async function generateVideoFromImages(
       httpOnly: true
     });
 
-    // We will intercept responses to catch the MP4 URL
-    let foundVideoUrl: string | null = null;
-    page.on('response', async (res) => {
-      const url = res.url();
-      // Look for the generated video URL in the network traffic
-      if (
-        (url.includes('.mp4') || (url.includes('tos-') && url.includes('video'))) && 
-        !url.includes('static/media') && 
-        !url.includes('showcase-modal')
-      ) {
-        if (!foundVideoUrl) {
-          console.log("[Puppeteer] 🎥 Ditemukan URL Video Utama:", url);
-          foundVideoUrl = url;
-        }
-      }
-    });
+    // (Network sniffing telah dihapus karena Dreamina me-load video galeri secara asinkron di latar belakang)
 
     console.log("[Puppeteer] Membuka Dreamina Canvas...");
     await page.goto('https://dreamina.capcut.com/ai-tool/home', { waitUntil: 'networkidle2' });
@@ -113,82 +98,139 @@ export async function generateVideoFromImages(
     }
     
     const clickXpath = async (xpath: string, name: string) => {
-      console.log(`[Puppeteer] Mengklik: ${name}...`);
+      console.log(`[Puppeteer] Mengklik (XPath): ${name}...`);
       await page.waitForSelector(`::-p-xpath(${xpath})`, { timeout: 15000 });
       await page.click(`::-p-xpath(${xpath})`);
       await new Promise(r => setTimeout(r, 1500));
     };
 
-    // 1. Klik AI Agent
-    await clickXpath("/html/body/div[1]/div[1]/div/div/div/div[2]/div/div[1]/div/div/div[1]/div[1]/div/div[3]/div/div[2]/div[1]/div[1]/div/div/span/span", "AI Agent");
+    // Fungsi helper baru untuk klik berdasarkan Teks (Jauh lebih stabil dari XPath/JSPath)
+    const clickText = async (text: string) => {
+      console.log(`[Puppeteer] Mengklik teks: ${text}...`);
+      await page.waitForSelector(`::-p-text(${text})`, { timeout: 15000 });
+      await page.click(`::-p-text(${text})`);
+      await new Promise(r => setTimeout(r, 1500));
+    };
 
-    // 2. Switch ke Video AI
-    await clickXpath("/html/body/div[3]/span/div/div[2]/div/div/li[3]/span/span", "Video AI");
+    // Fungsi helper baru untuk eksekusi klik JS Path langsung di DOM
+    const clickJsPath = async (selector: string, name: string) => {
+      console.log(`[Puppeteer] Mengklik (JS Path): ${name}...`);
+      let waitTime = 0;
+      let clicked = false;
+      while (waitTime < 15000) {
+        clicked = await page.evaluate((sel: string) => {
+          // Khusus svg/path, cari elemen button pembungkusnya atau tembak click event
+          const el = document.querySelector(sel) as HTMLElement | null;
+          if (el) {
+            const clickable = el.closest('button') || el;
+            clickable.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, view: window }));
+            return true;
+          }
+          return false;
+        }, selector);
+        
+        if (clicked) break;
+        await new Promise(r => setTimeout(r, 500));
+        waitTime += 500;
+      }
+      if (!clicked) throw new Error(`Timeout JS Path: ${name}`);
+      await new Promise(r => setTimeout(r, 1500));
+    };
+
+    // 1. Klik AI Agent
+    await clickJsPath("#dreamina-ui-configuration-content-wrapper > div.content-iyXFPD > div > div > div.scroll-content-b_fSc1.scroll-content > div.section-generator-rMSij5 > div > div.dimension-layout-cD09ib.default-layout-usosJ8.home-header-content-generator-qL9RPk > div > div.toolbar-tN43r_ > div.container-rRRbbS.toolbar-settings-NSjIhk > div > div > div > span > span", "AI Agent");
+
+    // 2. Switch ke Video AI (Gunakan selector atribut ID yang dinamis karena popup number bisa berubah)
+    await clickJsPath('[id^="lv-select-popup-"] > div > div > li:nth-child(3) > span > span > span.select-option-label-text-hNJvQd', "Video AI");
 
     // 3. Klik Referensi Omni
-    await clickXpath("/html/body/div[1]/div[1]/div/div/div/div[2]/div/div[1]/div/div/div[1]/div[1]/div/div[3]/div/div[2]/div[1]/div[1]/div[3]/div/div/span/span", "Referensi Omni");
+    await clickJsPath("#dreamina-ui-configuration-content-wrapper > div.content-iyXFPD > div > div > div.scroll-content-b_fSc1.scroll-content > div.section-generator-rMSij5 > div > div.dimension-layout-cD09ib.default-layout-usosJ8.home-header-content-generator-qL9RPk > div > div.toolbar-tN43r_ > div.container-rRRbbS.toolbar-settings-NSjIhk > div > div.feature-select-S77CVR > div > div > span > span", "Referensi Omni");
 
     // 4. Switch ke Multiframe
-    await clickXpath("/html/body/div[3]/span/div/div/div/div/li[3]/span/span/div/span", "Multi-frame");
+    await clickJsPath('[id^="lv-select-popup-"] > div > div > li:nth-child(3) > span > span > div > span', "Multi-frame");
+
+    // Helper untuk menangani Pop-up Confirm
+    const handleConfirmPopup = async () => {
+      console.log("[Puppeteer] Menutup pop-up confirm...");
+      await new Promise(r => setTimeout(r, 1500));
+      await page.evaluate(() => {
+        // Cari tombol yang mengandung kata Confirm
+        const btns = Array.from(document.querySelectorAll('button'));
+        const confirmBtn = btns.find(b => b.innerText.toLowerCase().includes('confirm'));
+        if (confirmBtn) {
+           confirmBtn.click();
+        }
+      });
+      await new Promise(r => setTimeout(r, 1000));
+    };
 
     // 5. Upload Frame 1
     console.log("[Puppeteer] Uploading Image 1...");
-    const frame1Xpath = "/html/body/div[1]/div[1]/div/div/div/div[2]/div/div[1]/div/div/div[1]/div[1]/div/div[3]/div/div[1]/div[1]/div/div[2]/div/div/div/div";
     const [fileChooser1] = await Promise.all([
       page.waitForFileChooser(),
-      page.click(`::-p-xpath(${frame1Xpath})`),
+      clickJsPath('[id$="-reference-upload-0"] > div', "Kotak Frame 1")
     ]);
     await fileChooser1.accept([image1Path]);
-    await new Promise(r => setTimeout(r, 2000));
+    await handleConfirmPopup();
 
     // 6. Upload Frame 2
     console.log("[Puppeteer] Uploading Image 2...");
-    const frame2Xpath = "/html/body/div[1]/div[1]/div/div/div/div[2]/div/div[1]/div/div/div[1]/div[1]/div/div[3]/div/div[1]/div[1]/div/div[2]/div/div[4]/div/div";
     const [fileChooser2] = await Promise.all([
       page.waitForFileChooser(),
-      page.click(`::-p-xpath(${frame2Xpath})`),
+      clickJsPath('[id$="-reference-upload-3"] > svg', "Kotak Frame 2")
     ]);
     await fileChooser2.accept([image2Path]);
-    await new Promise(r => setTimeout(r, 2000));
+    await handleConfirmPopup();
 
     // 7. Input Prompt di 0s
     console.log("[Puppeteer] Mengisi Teks Prompt...");
-    const promptAreaXpath = "/html/body/div[1]/div[1]/div/div/div/div[2]/div/div[1]/div/div/div[1]/div[1]/div/div[3]/div/div[1]/div[1]/div/div[2]/div/div[1]/div/div";
-    await clickXpath(promptAreaXpath, "Kotak Prompt 0s");
-    
+    await clickJsPath('[id$="-reference-upload-2"]', "Kotak Prompt 0s");
     // Ketik prompt
     await page.keyboard.type(prompt);
-    await new Promise(r => setTimeout(r, 500));
+    
+    // Memberikan waktu ekstra 5 detik agar sistem internal Dreamina (seperti filter kata/translasi otomatis) 
+    // selesai memproses prompt panjang yang baru saja kita ketik
+    await new Promise(r => setTimeout(r, 5000));
+
+    // Sebelum memencet tombol Generate, kita rekam semua URL video yang sudah ada di layar (galeri)
+    const existingVideos = await page.evaluate(() => {
+      return Array.from(document.querySelectorAll('video')).map(v => v.src).filter(Boolean);
+    });
+    console.log(`[Puppeteer] Ditemukan ${existingVideos.length} video usang di layar. Mengabaikannya...`);
 
     // 8. Klik Generate (Eksekusi)
-    // Menghindari klik path SVG, kita ambil button parent-nya dengan naik satu level XPath atau menghapus /svg/g/path
-    const executeXpath = "/html/body/div[1]/div[1]/div/div/div/div[2]/div/div[1]/div/div/div[1]/div[1]/div/div[3]/div/div[2]/div[2]/div/button";
-    await clickXpath(executeXpath, "Tombol Generate");
+    await clickJsPath("#dreamina-ui-configuration-content-wrapper > div.content-iyXFPD > div > div > div.scroll-content-b_fSc1.scroll-content > div.section-generator-rMSij5 > div > div.dimension-layout-cD09ib.default-layout-usosJ8.home-header-content-generator-qL9RPk > div > div.toolbar-tN43r_ > div.toolbar-actions-Rr9TiJ > div > button > svg > g > path", "Tombol Generate");
 
-    console.log("[Puppeteer] Sedang melakukan generate... (Menunggu maksimal 300 detik)");
+    console.log("[Puppeteer] Sedang melakukan generate... (Delay 10 detik awal, max 300 detik)");
     
-    // Polling DOM for a video tag OR wait for the network request `foundVideoUrl` to populate
-    let waitTime = 0;
+    // Jeda 10 detik sebelum mulai mengintai, agar Dreamina sempat loading dan membersihkan DOM lama
+    await new Promise(r => setTimeout(r, 10000));
+    
+    // Polling DOM for a NEW video tag
+    let waitTime = 10;
     while (waitTime < 300) {
-      if (foundVideoUrl) {
-        console.log("✅ Video berhasil di-generate!");
-        return foundVideoUrl;
-      }
-      
-      // Fallback fallback: Cari tag video di DOM
-      const videoSrc = await page.evaluate(() => {
-        const vid = document.querySelector('video');
-        return vid ? vid.src : null;
-      });
-      
-      if (videoSrc && videoSrc.startsWith('http')) {
-        console.log("✅ Video berhasil ditemukan di DOM!");
-        return videoSrc;
-      }
+      // Cari video BARU yang muncul setelah generate (yang src-nya tidak ada di existingVideos)
+      // ATAU cari di dalam wrapper spesifik dreamina-video-player
+      const newVideoUrl = await page.evaluate((oldVids: string[]) => {
+        // Prioritas Utama: Cari di dalam wrapper khusus video baru (sesuai masukan JS Path)
+        const primaryVid = document.querySelector('[id^="dreamina-video-player-"] > video') as HTMLVideoElement;
+        if (primaryVid && primaryVid.src && primaryVid.src.startsWith('http') && !oldVids.includes(primaryVid.src)) {
+          return primaryVid.src;
+        }
 
-      await new Promise(r => setTimeout(r, 1000));
-      waitTime += 1;
+        // Fallback: Cari sembarang video yang URL-nya baru
+        const vids = Array.from(document.querySelectorAll('video'));
+        const newVid = vids.find(v => v.src && v.src.startsWith('http') && !oldVids.includes(v.src));
+        return newVid ? newVid.src : null;
+      }, existingVideos);
       
+      if (newVideoUrl) {
+        console.log("✅ Video BARU berhasil di-generate dan ditemukan di DOM!", newVideoUrl);
+        return newVideoUrl;
+      }
+      
+      await new Promise(r => setTimeout(r, 1000));
+      waitTime++;
       if (waitTime % 10 === 0) console.log(`[Puppeteer] Menunggu... ${waitTime} detik`);
     }
 

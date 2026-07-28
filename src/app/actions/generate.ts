@@ -5,6 +5,7 @@ import os from 'os';
 import path from 'path';
 
 import type { DNAData, VisualGuideData } from '@/components/ClientLayout';
+import { generateImageFromCloudflare } from '@/lib/cloudflare/image';
 import {
   ComfyUIClient,
   ComfyUIError,
@@ -12,17 +13,20 @@ import {
   type ComfyHistoryEntry,
 } from '@/lib/comfyui/client';
 import {
+  DEFAULT_SVD_CHECKPOINT,
+  IMAGE_TO_VIDEO_OUTPUT_NODE,
   MUSIC_OUTPUT_NODE,
   NARRATION_OUTPUT_NODE,
   TRANSCRIPTION_SRT_PATH_NODE,
   TRANSCRIPTION_SRT_SUBFOLDER,
+  buildImageToVideoWorkflow,
   buildMusicWorkflow,
   buildNarrationWorkflow,
   buildTranscriptionWorkflow,
 } from '@/lib/comfyui/workflows';
 import { scanAssets } from '@/lib/ffmpeg/probe';
 import { createEditingBlueprint } from '@/lib/google/director';
-import { stitchBlueprint } from '@/lib/ffmpeg/dynamic_editor';
+import { renderDynamicVideo, stitchBlueprint } from '@/lib/ffmpeg/dynamic_editor';
 import { generateAssFile, type WordTimestamp } from '@/lib/ffmpeg/subtitles';
 
 export interface GenerateContentInput {
@@ -40,6 +44,95 @@ export interface GenerateContentResult {
   narration?: string;
   durationSeconds?: number;
   warnings: string[];
+}
+
+function resolveVideoFrames(): number {
+  const override = Math.trunc(Number(process.env.COMFYUI_SVD_VIDEO_FRAMES));
+  if (Number.isFinite(override) && override > 0) return override;
+
+  const checkpoint = (process.env.COMFYUI_SVD_CHECKPOINT ?? DEFAULT_SVD_CHECKPOINT).trim();
+  const stem = checkpoint.split(/[\\/]/).pop()?.replace(/\.[^.]+$/, '') ?? '';
+  return /(^|[_\-.])xt([_\-.]|$)/i.test(stem) ? 25 : 14;
+}
+
+const SVD_VIDEO_FRAMES = resolveVideoFrames();
+const SVD_FPS = 6;
+const SVD_WIDTH = 576;
+const SVD_HEIGHT = 1024;
+const WORDS_PER_SECOND = 2.5;
+
+function videoDurationSeconds(): number {
+  return SVD_VIDEO_FRAMES / SVD_FPS;
+}
+
+function splitSentences(script: string): string[] {
+  return (script.match(/[^.!?…]+[.!?…]+|[^.!?…]+$/g) ?? [])
+    .map((sentence) => sentence.trim())
+    .filter(Boolean);
+}
+
+function countWords(text: string): number {
+  return text.split(/\s+/).filter(Boolean).length;
+}
+
+function budgetNarration(script: string, seconds: number): { text: string; droppedWords: number } {
+  const trimmed = script.trim();
+  const totalWords = countWords(trimmed);
+  const maxWords = Math.max(1, Math.round(seconds * WORDS_PER_SECOND));
+  if (totalWords <= maxWords) {
+    return { text: trimmed.split(/\s+/).filter(Boolean).join(' '), droppedWords: 0 };
+  }
+
+  const kept: string[] = [];
+  let keptWords = 0;
+  for (const sentence of splitSentences(trimmed)) {
+    const words = countWords(sentence);
+    if (keptWords + words > maxWords) break;
+    kept.push(sentence);
+    keptWords += words;
+  }
+  if (kept.length > 0) {
+    return { text: kept.join(' '), droppedWords: totalWords - keptWords };
+  }
+
+  const words = trimmed.split(/\s+/).filter(Boolean);
+  return { text: words.slice(0, maxWords).join(' '), droppedWords: totalWords - maxWords };
+}
+
+function joinParts(...parts: (string | undefined)[]): string {
+  return parts
+    .map((part) => (part ?? '').trim())
+    .filter(Boolean)
+    .join(', ');
+}
+
+function composeNarration(input: GenerateContentInput): string {
+  if (input.narrationScript?.trim()) return input.narrationScript.trim();
+  const { visualGuide } = input;
+  const script = [visualGuide.hook, visualGuide.validasi, visualGuide.insight, visualGuide.actionCta]
+    .map((part) => (part ?? '').trim())
+    .filter(Boolean)
+    .join(' ');
+  return script || (visualGuide.konten ?? '').trim();
+}
+
+function composeImagePrompt(input: GenerateContentInput): string {
+  if (input.imagePrompt?.trim()) return input.imagePrompt.trim();
+  const { dna, visualGuide } = input;
+  const subject = joinParts(
+    visualGuide.visualFocus,
+    visualGuide.hook,
+    visualGuide.videoStyle,
+    dna.visualStyle,
+    dna.brandName ? `brand ${dna.brandName}` : undefined,
+  );
+  return joinParts(subject || 'cinematic brand storytelling scene', 'vertical 9:16 composition', 'cinematic lighting', 'highly detailed', 'photorealistic');
+}
+
+function composeBgmTags(input: GenerateContentInput): string {
+  const { dna, visualGuide } = input;
+  const mood = joinParts(visualGuide.sound, dna.tone) || 'cinematic, uplifting';
+  return joinParts(mood, 'instrumental', 'no vocals');
 }
 
 function composeVoiceDescription(dna: DNAData): string {
@@ -141,7 +234,7 @@ export async function generateContentAction(
     if (!(await comfy.isReachable())) {
       return {
         success: false,
-        message: 'ComfyUI tidak dapat dihubungi.',
+        message: 'ComfyUI tidak dapat dihubungi. Jalankan ComfyUI di 127.0.0.1:8188 (atau set COMFYUI_BASE_URL) lalu coba lagi.',
         warnings,
       };
     }
@@ -150,39 +243,86 @@ export async function generateContentAction(
 
     // 1. Scan b-roll
     const bRollDir = path.join(process.cwd(), 'public', 'b-roll');
-    if (!fs.existsSync(bRollDir)) {
-       return { success: false, message: 'b-roll directory not found', warnings };
+    let assets: any[] = [];
+    if (fs.existsSync(bRollDir)) {
+      assets = await scanAssets(bRollDir);
     }
-    const assets = await scanAssets(bRollDir);
-    if (assets.length === 0) {
-      return { success: false, message: 'No B-Roll assets found in ' + bRollDir, warnings };
-    }
-
-    // 2. Blueprint
-    const contextStr = JSON.stringify({ dna: input.dna, guide: input.visualGuide });
-    const blueprint = await createEditingBlueprint(contextStr, assets);
     
-    // Fix blueprint timeline paths
-    let duration = 0;
-    blueprint.timeline.forEach(clip => {
-      clip.file = path.join(bRollDir, path.basename(clip.file));
-      duration += clip.duration;
-    });
+    const useBRollPath = assets.length > 0;
 
-    // 3. Narration
+    let duration = 0;
+    let narrationText = '';
+    let blueprint: any = null;
+    let frameName = '';
+
+    if (useBRollPath) {
+      // ── Stage B-Roll 1: Blueprint
+      const contextStr = JSON.stringify({ dna: input.dna, guide: input.visualGuide });
+      blueprint = await createEditingBlueprint(contextStr, assets);
+      
+      // Fix blueprint timeline paths
+      blueprint.timeline.forEach((clip: any) => {
+        clip.file = path.join(bRollDir, path.basename(clip.file));
+        duration += clip.duration;
+      });
+      narrationText = blueprint.tts_script;
+      
+    } else {
+      // ── Stage SVD 1: Narration script setup and Cloudflare T2I
+      const script = composeNarration(input);
+      if (!script) {
+        return {
+          success: false,
+          message: 'Naskah narasi kosong. Isi Hook/Insight/CTA pada Visual Guide terlebih dahulu.',
+          warnings,
+        };
+      }
+      duration = videoDurationSeconds();
+      const { text: budgetedNarration, droppedWords } = budgetNarration(script, duration);
+      narrationText = budgetedNarration;
+      if (droppedWords > 0) {
+        warnings.push(
+          `Naskah dipangkas ${droppedWords} kata agar muat dalam video ${duration.toFixed(1)} detik ` +
+            `(${SVD_VIDEO_FRAMES} frame @ ${SVD_FPS}fps). Perpendek naskah atau pakai checkpoint SVD ` +
+            `dengan frame lebih banyak.`,
+        );
+      }
+      warnings.push(
+        `Panjang narasi diperkirakan dari asumsi ${WORDS_PER_SECOND} kata/detik dan belum pernah ` +
+          `diukur dari VoxCPM2. Jika TTS bicara lebih lambat, ekor narasi akan terpotong saat render.`,
+      );
+
+      const framePath = path.join(workDir, 'frame.png');
+      const imageOk = await generateImageFromCloudflare(composeImagePrompt(input), framePath);
+      if (!imageOk || !fs.existsSync(framePath)) {
+        return {
+          success: false,
+          message: 'Gagal membuat gambar awal via Cloudflare. Periksa CLOUDFLARE_IMAGE_API_URL dan CLOUDFLARE_IMAGE_API_KEY.',
+          warnings,
+        };
+      }
+      const frameUpload = await comfy.uploadFile(
+        fs.readFileSync(framePath),
+        `venturo_frame_${timestamp}.png`,
+      );
+      frameName = frameUpload.subfolder
+        ? `${frameUpload.subfolder}/${frameUpload.name}`
+        : frameUpload.name;
+    }
+
+    // ── Stage 2: Narration (VoxCPM2)
     const narrationEntry = await comfy.runWorkflow(
       buildNarrationWorkflow({
-        text: blueprint.tts_script,
+        text: narrationText,
         voiceDescription: composeVoiceDescription(input.dna),
       }),
     );
     const narrationFile = requireOutputFile(comfy, narrationEntry, NARRATION_OUTPUT_NODE, 'narasi');
     const voicePath = await downloadTo(comfy, narrationFile, workDir, 'narration');
 
-    // 4. Subtitles
+    // ── Stage 3: Subtitles (Whisper & ASS generation)
     let srtPath: string | undefined;
-    let assPath = path.join(workDir, 'subtitles.ass');
-    
+    const assPath = path.join(workDir, 'subtitles.ass');
     const srtName = `venturo_subtitles_${timestamp}`;
     const audioUpload = await comfy.uploadFile(
       fs.readFileSync(voicePath),
@@ -196,52 +336,79 @@ export async function generateContentAction(
       const transcriptionPromptId = await comfy.queuePrompt(
         buildTranscriptionWorkflow({ audioName, srtName }),
       );
-      const transcriptionEntry = await comfy.waitForPrompt(transcriptionPromptId);
-      const [reportedSrtPath] = comfy.collectOutputText(
-        transcriptionEntry,
-        TRANSCRIPTION_SRT_PATH_NODE,
-      );
-      srtPath = await downloadTo(
-        comfy,
-        resolveSrtRef(reportedSrtPath, srtName),
-        workDir,
-        'subtitles',
-      );
-      
-      const srtContent = fs.readFileSync(srtPath, 'utf8');
-      const words = parseSrt(srtContent);
-      generateAssFile(words, assPath);
-    } catch (error) {
-      warnings.push(`Subtitle gagal: ${describeError(error)}`);
-      if (!fs.existsSync(assPath)) {
-        generateAssFile([], assPath);
+      if (transcriptionPromptId) {
+        const transcriptionEntry = await comfy.waitForPrompt(transcriptionPromptId);
+        const [reportedSrtPath] = comfy.collectOutputText(
+          transcriptionEntry,
+          TRANSCRIPTION_SRT_PATH_NODE,
+        );
+        srtPath = await downloadTo(
+          comfy,
+          resolveSrtRef(reportedSrtPath, srtName),
+          workDir,
+          'subtitles',
+        );
+        const srtContent = fs.readFileSync(srtPath, 'utf8');
+        const words = parseSrt(srtContent);
+        generateAssFile(words, assPath);
       }
+    } catch (error) {
+      warnings.push(`Subtitle dilewati atau gagal: ${describeError(error)}`);
     }
 
     if (!fs.existsSync(assPath)) {
-       generateAssFile([], assPath);
+      generateAssFile([], assPath);
     }
 
-    // 5. BGM
+    // ── Stage 4: Background music (ACE-Step)
+    const bgmPromptStr = useBRollPath && blueprint ? blueprint.bgm_prompt : (input.bgmTags?.trim() || composeBgmTags(input));
     const musicEntry = await comfy.runWorkflow(
       buildMusicWorkflow({
-        tags: blueprint.bgm_prompt,
+        tags: bgmPromptStr,
         seconds: Math.max(1, Math.ceil(duration)),
       }),
     );
     const musicFile = requireOutputFile(comfy, musicEntry, MUSIC_OUTPUT_NODE, 'BGM');
     const bgmPath = await downloadTo(comfy, musicFile, workDir, 'bgm');
 
-    // 6. Stitch
+    // ── Stage 5: Render
     const finalDir = path.join(process.cwd(), 'public', 'generations', 'final');
+    if (!fs.existsSync(finalDir)) {
+      fs.mkdirSync(finalDir, { recursive: true });
+    }
     const outputPath = path.join(finalDir, `final_${timestamp}.mp4`);
-    await stitchBlueprint(blueprint, voicePath, bgmPath, assPath, outputPath);
+
+    if (useBRollPath) {
+      await stitchBlueprint(blueprint, voicePath, bgmPath, assPath, outputPath);
+    } else {
+      // ── Stage SVD 5: The picture (SVD)
+      const videoEntry = await comfy.runWorkflow(
+        buildImageToVideoWorkflow({
+          imageName: frameName,
+          width: SVD_WIDTH,
+          height: SVD_HEIGHT,
+          videoFrames: SVD_VIDEO_FRAMES,
+          fps: SVD_FPS,
+        }),
+      );
+      const videoFile = requireOutputFile(comfy, videoEntry, IMAGE_TO_VIDEO_OUTPUT_NODE, 'video');
+      const videoPath = await downloadTo(comfy, videoFile, workDir, 'scene');
+
+      await renderDynamicVideo({
+        videoPath,
+        voicePath,
+        bgmPath,
+        srtPath,
+        outputPath,
+        durationSeconds: duration,
+      });
+    }
 
     return {
       success: true,
       message: 'Video berhasil dibuat!',
       videoUrl: `/generations/final/final_${timestamp}.mp4`,
-      narration: blueprint.tts_script,
+      narration: narrationText,
       durationSeconds: duration,
       warnings,
     };

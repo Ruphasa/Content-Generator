@@ -421,6 +421,7 @@ export async function stitchBlueprint(
       .complexFilter(filterGraph.join(''))
       .map('[vout]')
       .map('[aout]')
+      .outputOptions(['-c:v libx264', '-c:a aac', '-pix_fmt yuv420p'])
       .output(outputPath)
       .on('end', () => resolve(outputPath))
       .on('error', reject)

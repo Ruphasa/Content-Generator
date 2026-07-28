@@ -2,8 +2,6 @@ import { GoogleGenAI } from '@google/genai';
 import { AssetMetadata } from '../ffmpeg/probe';
 import path from 'path';
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || process.env.GOOGLE_GENAI_API_KEY });
-
 export interface DirectorBlueprint {
   tts_script: string;
   bgm_prompt: string;
@@ -11,6 +9,7 @@ export interface DirectorBlueprint {
 }
 
 export async function createEditingBlueprint(context: string, assets: AssetMetadata[]): Promise<DirectorBlueprint> {
+  const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || process.env.GOOGLE_GENAI_API_KEY });
   const assetInfo = assets.map(a => `${path.basename(a.file)} (Duration: ${a.duration}s)`).join('\n');
   
   const prompt = `You are an expert Video Director. We have these B-Roll clips:
@@ -32,5 +31,7 @@ Return ONLY valid JSON format:
     config: { responseMimeType: "application/json" }
   });
   
-  return JSON.parse(response.text || "{}");
+  const cleanedText = response.text?.replace(/^```(?:json)?\s*|\s*```$/g, '').trim() || '{}';
+  return JSON.parse(cleanedText);
 }
+

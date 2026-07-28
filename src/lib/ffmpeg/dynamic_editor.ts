@@ -23,11 +23,7 @@ import path from 'path';
 // its postinstall never downloaded the binary, so existence is checked before use
 // and we otherwise fall back to whatever ffmpeg is on PATH.
 if (ffmpegStatic) {
-  let ffmpegPath: string = ffmpegStatic;
-  // Fix Next.js Turbopack path rewriting issue
-  if (ffmpegPath.includes('\\ROOT\\')) {
-    ffmpegPath = ffmpegPath.replace('\\ROOT\\', process.cwd() + '\\');
-  }
+  const ffmpegPath: string = ffmpegStatic;
   if (fs.existsSync(ffmpegPath)) {
     ffmpeg.setFfmpegPath(ffmpegPath);
   } else {

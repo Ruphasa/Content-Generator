@@ -37,10 +37,28 @@ if (ffmpegStatic) {
   }
 }
 
+/**
+ * Inputs for one render.
+ *
+ * IMPORTANT - output length is `min(video duration, narration duration)`.
+ * The mix ends with the narration (`amix=duration=first`) and the output ends
+ * with the shortest mapped stream (`-shortest`), so whichever input runs out
+ * first ends the video and the other one is cut. This matters in practice:
+ * SVD clips are commonly 2-4s while VoxCPM2 narration for a full script runs
+ * much longer, and in that case **the tail of the narration is silently
+ * discarded** - the render still succeeds and still returns a path.
+ *
+ * Matching the durations is the caller's job; this module does not stretch,
+ * loop or pad either stream. When the two diverge it emits a `console.warn`
+ * naming both durations and how much was lost.
+ */
 export interface RenderParams {
-  /** Silent video produced by SVD. */
+  /** Silent video produced by SVD. Its length caps the output (see above). */
   videoPath: string;
-  /** Narration track produced by VoxCPM2. */
+  /**
+   * Narration track produced by VoxCPM2. If this is longer than the video, its
+   * tail is cut - see the truncation note on this interface.
+   */
   voicePath: string;
   /** Background music produced by ACE-Step. Omit to render without music. */
   bgmPath?: string;
@@ -103,12 +121,19 @@ function escapeFilterPath(filePath: string): string {
  *
  * `zoompan` is the obvious tool but is the wrong one here: it works per *input*
  * frame with `d` output frames each, which on a video stream (rather than a
- * still) yields a timing mess, and its crop window is positioned on integer
- * pixels, which visibly jitters. Instead the frame is progressively enlarged
- * with `scale` using per-frame expression evaluation and then cropped back to a
- * fixed canvas - the scale-up-then-crop approach. Measured on a frozen yuv420p
- * source this was ~1.6x smoother than a 2x-upscaled `zoompan` and ~4x smoother
- * than rounding the intermediate size to even pixels.
+ * still) yields a timing mess. Instead the frame is progressively enlarged with
+ * `scale` using per-frame expression evaluation and then cropped back to a fixed
+ * canvas - the scale-up-then-crop approach. Measured on a frozen yuv420p source
+ * this was ~1.6x smoother than a 2x-upscaled `zoompan` and ~4x smoother than
+ * rounding the intermediate size to even pixels.
+ *
+ * The smoothness gain does *not* come from avoiding integer positioning: `crop`
+ * also lands on whole pixels, and in yuv420p it snaps x/y to chroma-aligned even
+ * pixels. It comes from `scale` resampling the picture continuously as the frame
+ * grows - the magnification itself advances by sub-pixel amounts every frame and
+ * is interpolated, so the motion reads as smooth even though the crop origin
+ * still steps. Rounding the intermediate size to even pixels was the jerkiest
+ * variant measured precisely because it coarsened that resampling.
  *
  * The crop offsets are derived from `t` rather than the usual
  * `(in_w-out_w)/2`. `crop` re-evaluates its expressions per frame, but `in_w` /
@@ -148,7 +173,8 @@ function buildKenBurnsChain(width: number, height: number, fps: number, duration
  * level. `sidechaincompress` takes the signal to be compressed first and the key
  * second, so the music is the main input and the voice is the trigger - the
  * music ducks whenever the voice is present and recovers when it stops.
- * Measured attenuation: about -11 dB under speech.
+ * Measured attenuation on this filtergraph: about -7.7 dB under speech, against
+ * a static-`volume` control that stayed flat across the same two windows.
  */
 function buildAudioChain(hasBgm: boolean): string[] {
   const fmt = 'aformat=sample_fmts=fltp:sample_rates=48000:channel_layouts=stereo';
@@ -192,8 +218,72 @@ function buildSubtitleChain(srtPath: string): string[] {
   return [`[v_kb]subtitles=${escapeFilterPath(srtPath)}:force_style='${style}'[v_out]`];
 }
 
+/** Input durations harvested from ffmpeg's own stderr banner, keyed by input index. */
+interface DurationScan {
+  durations: Map<number, number>;
+  /** Index of the `Input #N` header whose `Duration:` line we expect next. */
+  pendingInput: number;
+}
+
+/** Ignore sub-second drift; encoder rounding alone produces a few hundredths. */
+const TRUNCATION_WARN_SECONDS = 0.5;
+
+/**
+ * Picks input durations out of the stderr this module already captures.
+ *
+ * ffmpeg prints an `Input #N ...` header followed by a `Duration: HH:MM:SS.ss`
+ * line for every input, so the numbers are already on hand - no ffprobe call and
+ * no new probing mechanism. (ffmpeg-static ships no ffprobe binary, so probing
+ * would have meant depending on a separate binary being on PATH.)
+ */
+function scanInputDuration(line: string, scan: DurationScan): void {
+  const header = /^\s*Input #(\d+)/.exec(line);
+  if (header) {
+    scan.pendingInput = Number(header[1]);
+    return;
+  }
+  if (scan.pendingInput < 0) return;
+
+  const duration = /Duration:\s*(\d+):(\d\d):(\d\d(?:\.\d+)?)/.exec(line);
+  if (!duration) return;
+
+  const seconds =
+    Number(duration[1]) * 3600 + Number(duration[2]) * 60 + Number(duration[3]);
+  if (!scan.durations.has(scan.pendingInput)) {
+    scan.durations.set(scan.pendingInput, seconds);
+  }
+  scan.pendingInput = -1;
+}
+
+/**
+ * Warns when the picture and the narration disagree on length.
+ *
+ * The output runs for `min(video, narration)`, so a divergence means one of them
+ * was cut. Truncation is deliberate policy - matching durations belongs to the
+ * caller - but it must not be silent, because the render still succeeds and
+ * still returns a path even when most of the narration was thrown away.
+ */
+function warnIfTruncated(durations: Map<number, number>): void {
+  const video = durations.get(0);
+  const voice = durations.get(1);
+  if (video === undefined || voice === undefined) return;
+
+  const lost = Math.abs(video - voice);
+  if (lost < TRUNCATION_WARN_SECONDS) return;
+
+  const cut = video < voice ? 'narasi' : 'video';
+  console.warn(
+    `[DynamicEditor] Durasi input tidak sama: video ${video.toFixed(2)}s, ` +
+      `narasi ${voice.toFixed(2)}s. Output dipotong ke ${Math.min(video, voice).toFixed(2)}s, ` +
+      `${lost.toFixed(2)}s bagian akhir ${cut} terbuang.`
+  );
+}
+
 /**
  * Renders the finished video and resolves with `outputPath`.
+ *
+ * Note the length contract on `RenderParams`: the output runs for
+ * `min(video, narration)` and the longer input is cut.
  */
 export async function renderDynamicVideo(params: RenderParams): Promise<string> {
   const {
@@ -244,6 +334,7 @@ export async function renderDynamicVideo(params: RenderParams): Promise<string> 
 
   return new Promise<string>((resolve, reject) => {
     const stderrLines: string[] = [];
+    const durationScan: DurationScan = { durations: new Map(), pendingInput: -1 };
 
     const command = ffmpeg()
       .input(videoPath)
@@ -273,6 +364,7 @@ export async function renderDynamicVideo(params: RenderParams): Promise<string> 
         stderrLines.push(line);
         // Keep memory bounded on long renders; the tail is what matters.
         if (stderrLines.length > 200) stderrLines.shift();
+        scanInputDuration(line, durationScan);
       })
       .on('error', (err: Error) => {
         // fluent-ffmpeg's Error carries no stderr, which is exactly where the
@@ -285,7 +377,10 @@ export async function renderDynamicVideo(params: RenderParams): Promise<string> 
           )
         );
       })
-      .on('end', () => resolve(outputPath))
+      .on('end', () => {
+        warnIfTruncated(durationScan.durations);
+        resolve(outputPath);
+      })
       .save(outputPath);
   });
 }

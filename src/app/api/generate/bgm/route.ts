@@ -8,7 +8,8 @@ export async function POST(req: Request) {
   try {
     const { prompt, tags, title } = await req.json();
 
-    console.log(`[BGM-Mock] MOCK MODE AKTIF: Melompati Suno Scraper untuk menghemat token/captcha...`);
+    // Legacy route, superseded by ACE-Step in src/app/actions/generate.ts.
+    console.log(`[BGM-Mock] MOCK MODE AKTIF: mengembalikan BGM statis, bukan hasil generate...`);
     
     // Simulate a brief delay
     await new Promise(r => setTimeout(r, 1000));

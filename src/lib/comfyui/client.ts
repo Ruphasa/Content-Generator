@@ -16,9 +16,29 @@
  *
  * Env:
  *   COMFYUI_BASE_URL  (default "http://127.0.0.1:8188")
+ *   COMFYUI_TIMEOUT_MS (default 600000 — how long to wait for one prompt)
  */
 
 export const DEFAULT_COMFYUI_BASE_URL = 'http://127.0.0.1:8188';
+
+/**
+ * Default per-prompt wait. This is per STAGE, not per job: ACE-Step at 50 steps
+ * and SVD at 25 frames x 20 steps can each approach it on 8GB once model swapping
+ * is counted, so raise COMFYUI_TIMEOUT_MS on a slow machine rather than assuming
+ * a stage that ran long is stuck.
+ */
+export const DEFAULT_COMFYUI_TIMEOUT_MS = 10 * 60 * 1000;
+
+/**
+ * Consecutive failed /history polls tolerated before giving up.
+ *
+ * A local aiohttp server under load from the very job we are waiting on can drop
+ * or 5xx a poll; treating that as fatal throws away minutes of GPU work, and the
+ * most exposed stage is the last and most expensive one. The counter resets on
+ * any successful poll, so this tolerates transient blips without papering over a
+ * server that has actually gone away — and the overall deadline still applies.
+ */
+const MAX_CONSECUTIVE_POLL_FAILURES = 3;
 
 /** A reference to another node's output: [nodeId, outputSlotIndex]. */
 export type ComfyNodeLink = [string, number];
@@ -84,7 +104,7 @@ export type ComfyHistoryResponse = Record<string, ComfyHistoryEntry>;
 export interface ComfyUIClientOptions {
   baseUrl?: string;
   clientId?: string;
-  /** Give up waiting for a prompt after this long. Default 10 minutes. */
+  /** Give up waiting for a prompt after this long. Default COMFYUI_TIMEOUT_MS, else 10 minutes. */
   timeoutMs?: number;
   /** How often to poll /history while waiting. Default 2 seconds. */
   pollIntervalMs?: number;
@@ -141,7 +161,10 @@ export class ComfyUIClient {
     const configured = options.baseUrl ?? process.env.COMFYUI_BASE_URL ?? DEFAULT_COMFYUI_BASE_URL;
     this.baseUrl = configured.replace(/\/+$/, '');
     this.clientId = options.clientId ?? 'venturo-content-generator';
-    this.timeoutMs = options.timeoutMs ?? 10 * 60 * 1000;
+    const envTimeout = Math.trunc(Number(process.env.COMFYUI_TIMEOUT_MS));
+    this.timeoutMs =
+      options.timeoutMs ??
+      (Number.isFinite(envTimeout) && envTimeout > 0 ? envTimeout : DEFAULT_COMFYUI_TIMEOUT_MS);
     this.pollIntervalMs = options.pollIntervalMs ?? 2000;
   }
 
@@ -213,14 +236,36 @@ export class ComfyUIClient {
   /**
    * Poll /history until the prompt finishes.
    * Throws on ComfyUI execution errors and on timeout — never resolves silently.
+   *
+   * A poll that fails to reach the server is retried up to
+   * MAX_CONSECUTIVE_POLL_FAILURES times, because the job we are waiting on is
+   * itself what makes the local server briefly unresponsive. Execution errors
+   * reported BY ComfyUI are not retried — those are answers, not failures.
    */
   async waitForPrompt(promptId: string, options: WaitOptions = {}): Promise<ComfyHistoryEntry> {
     const timeoutMs = options.timeoutMs ?? this.timeoutMs;
     const pollIntervalMs = options.pollIntervalMs ?? this.pollIntervalMs;
     const deadline = Date.now() + timeoutMs;
+    let consecutiveFailures = 0;
 
     while (Date.now() < deadline) {
-      const entry = await this.getHistory(promptId);
+      let entry: ComfyHistoryEntry | null;
+      try {
+        entry = await this.getHistory(promptId);
+        consecutiveFailures = 0;
+      } catch (error) {
+        consecutiveFailures += 1;
+        if (consecutiveFailures >= MAX_CONSECUTIVE_POLL_FAILURES) {
+          throw new ComfyUIError(
+            `Gagal membaca history ComfyUI ${consecutiveFailures} kali berturut-turut untuk ` +
+              `prompt ${promptId}: ${(error as Error).message}`,
+            { details: (error as ComfyUIError).details },
+          );
+        }
+        await sleep(pollIntervalMs);
+        continue;
+      }
+
       const status = entry?.status;
 
       if (entry && status) {

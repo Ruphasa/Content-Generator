@@ -346,8 +346,16 @@ export interface TranscriptionOptions {
   model?: string;
   /** "auto", or a capitalised language name such as "Indonesian". */
   language?: string;
-  /** Base name for the .srt written to ComfyUI/output/srt. */
-  srtName?: string;
+  /**
+   * Base name for the .srt written to ComfyUI/output/srt.
+   *
+   * REQUIRED, and it must be unique per run. `SaveSRTNode.save_srt` upstream is
+   * `os.path.join(output_dir, name) + ".srt"` opened with a plain `'w'` — no
+   * counter, no dedup, straight overwrite — so a shared default would let two
+   * concurrent runs collide on one file and burn each other's subtitles. There is
+   * deliberately no default here: uniqueness has to be the caller's decision.
+   */
+  srtName: string;
 }
 
 /**
@@ -365,9 +373,9 @@ export interface TranscriptionOptions {
 export function buildTranscriptionWorkflow(options: TranscriptionOptions): ComfyWorkflow {
   const {
     audioName,
+    srtName,
     model = env('COMFYUI_WHISPER_MODEL', DEFAULT_WHISPER_MODEL),
     language = 'auto',
-    srtName = 'venturo_subtitles',
   } = options;
 
   return {

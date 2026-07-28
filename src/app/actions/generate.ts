@@ -156,8 +156,6 @@ const SVD_HEIGHT = 1024;
  */
 const WORDS_PER_SECOND = 2.5;
 
-const SRT_BASE_NAME = 'venturo_subtitles';
-
 function videoDurationSeconds(): number {
   return SVD_VIDEO_FRAMES / SVD_FPS;
 }
@@ -309,12 +307,21 @@ async function downloadTo(
  *
  * `Save SRT` is not an OUTPUT node, so /history carries no file ref for it — only
  * a path string echoed through PreviewAny. The reference is therefore assembled
- * by hand from that string's basename (which keeps any counter suffix ComfyUI
- * added), falling back to the name we asked for.
+ * by hand from that string's basename, falling back to the name we asked for.
+ *
+ * `fallbackName` is a parameter rather than a module constant on purpose: it is
+ * the same value handed to `buildTranscriptionWorkflow`, so the graph and the
+ * fallback cannot drift apart. And it must be unique per run — upstream's
+ * `SaveSRTNode.save_srt` is `os.path.join(output_dir, name) + ".srt"` written
+ * with a plain `open(..., 'w')`: no counter, no dedup, straight overwrite. With
+ * a fixed name two concurrent runs share one file on disk, and since the /view
+ * download happens after this run's own poll returns, a second run finishing
+ * inside the poll gap would have this run burn the wrong narration's subtitles
+ * into its video — succeeding, and warning nothing.
  */
-function resolveSrtRef(reportedPath: string | undefined): ComfyFileRef {
+function resolveSrtRef(reportedPath: string | undefined, fallbackName: string): ComfyFileRef {
   const basename = (reportedPath ?? '').trim().split(/[\\/]/).pop() ?? '';
-  const filename = basename.toLowerCase().endsWith('.srt') ? basename : `${SRT_BASE_NAME}.srt`;
+  const filename = basename.toLowerCase().endsWith('.srt') ? basename : `${fallbackName}.srt`;
   return { filename, subfolder: TRANSCRIPTION_SRT_SUBFOLDER, type: 'output' };
 }
 
@@ -399,16 +406,21 @@ export async function generateContentAction(
     // ── Stage 3: subtitles (Whisper). Needs the narration back inside ComfyUI's
     // input directory, because LoadAudio reads from there and not from our disk.
     //
-    // Exactly one thing here is soft: ComfyUI REJECTING the graph. Validation
-    // happens at POST /prompt, so an uninstalled `Apply Whisper` / `Save SRT` — the
-    // two classes workflows.ts marks UNVERIFIED-PENDING-INSTALL — fails there, in a
-    // second, with node_errors naming the culprit. That case degrades to a warning
-    // and a render without captions, which dynamic_editor supports.
+    // Two things here are soft, both for the same reason — an unverified custom
+    // node must not destroy a run that has already paid for narration:
     //
-    // Everything else stays fatal by design. Local file I/O, the upload, the /view
-    // download and above all `waitForPrompt` are outside the catch: a hung Whisper
-    // graph must surface as its real 10-minute timeout, not as a shrug.
+    //   1. ComfyUI REJECTING the graph. Validation happens at POST /prompt, so an
+    //      uninstalled or mis-wired `Apply Whisper` / `Save SRT` fails there, in a
+    //      second, with node_errors naming the culprit.
+    //   2. Collecting the .srt afterwards. `Save SRT` reports only a path string,
+    //      so if it writes somewhere unexpected the /view download 404s — a
+    //      subtitle-shaped problem, not a reason to lose the video.
+    //
+    // Everything between them stays fatal by design. Local file I/O, the upload
+    // and above all `waitForPrompt` are outside both catches: a hung Whisper graph
+    // must surface as its real timeout, not as a shrug.
     let srtPath: string | undefined;
+    const srtName = `venturo_subtitles_${timestamp}`;
     const audioUpload = await comfy.uploadFile(
       fs.readFileSync(voicePath),
       `venturo_narration_${timestamp}${path.extname(voicePath)}`,
@@ -420,7 +432,7 @@ export async function generateContentAction(
     let transcriptionPromptId: string | undefined;
     try {
       transcriptionPromptId = await comfy.queuePrompt(
-        buildTranscriptionWorkflow({ audioName, srtName: SRT_BASE_NAME }),
+        buildTranscriptionWorkflow({ audioName, srtName }),
       );
     } catch (error) {
       warnings.push(
@@ -435,7 +447,16 @@ export async function generateContentAction(
         transcriptionEntry,
         TRANSCRIPTION_SRT_PATH_NODE,
       );
-      srtPath = await downloadTo(comfy, resolveSrtRef(reportedSrtPath), workDir, 'subtitles');
+      try {
+        srtPath = await downloadTo(
+          comfy,
+          resolveSrtRef(reportedSrtPath, srtName),
+          workDir,
+          'subtitles',
+        );
+      } catch (error) {
+        warnings.push(`Subtitle dilewati, gagal mengambil berkas .srt: ${describeError(error)}`);
+      }
     }
 
     // ── Stage 4: background music (ACE-Step), generated at the video's length.

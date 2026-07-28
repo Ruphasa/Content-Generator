@@ -223,82 +223,11 @@ export default function ClientLayout() {
 
       if (!hasFootage) {
         // === FLOW A: NO FOOTAGE AVAILABLE ===
-        // 1. Director Phase 1 (Prompt Gen based on DNA & Visual Guide)
-        setGenerateProgress({ progress: 15, message: "Fase 1/4: Membuat ide visual & prompt Dreamina..." });
-        const promptRes = await fetch('/api/generate/director', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: 'prompt_only', dna: dnaData, visualGuide })
-        }).then(r => r.json());
-
-        if (!promptRes.success) throw new Error(promptRes.error || "Gagal merancang prompt visual.");
-
-        // 2. Video Gen via Dreamina
-        setGenerateProgress({ progress: 35, message: "Fase 2/4: Generasi video AI via Dreamina..." });
-        const videoRes = await fetch('/api/generate/video-gen', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ prompt1: promptRes.prompt1, prompt2: promptRes.prompt2 })
-        }).then(r => r.json());
-
-        if (!videoRes.success) throw new Error(videoRes.error || "Gagal membuat video Dreamina.");
-
-        const videoDuration = videoRes.duration || 5.0;
-
-        // 3. Director Phase 2 (Scripting tailored to exact videoDuration)
-        setGenerateProgress({ progress: 55, message: `Fase 3/4: Penulisan naskah narasi (pas ${videoDuration.toFixed(1)}s)...` });
-        const scriptRes = await fetch('/api/generate/director', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: 'script_only', dna: dnaData, visualGuide, targetDuration: videoDuration })
-        }).then(r => r.json());
-
-        if (!scriptRes.success) throw new Error(scriptRes.error || "Gagal membuat naskah narasi.");
-
-        // 4. TTS & BGM
-        setGenerateProgress({ progress: 75, message: "Fase 4/4: Membuat audio TTS & musik BGM..." });
-        const [ttsRes, bgmRes] = await Promise.all([
-          fetch('/api/generate/tts', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ text: scriptRes.narration, voice: "id-ID-AndikaNeural" })
-          }).then(r => r.json()),
-          fetch('/api/generate/bgm', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ prompt: scriptRes.bgmPrompt })
-          }).then(r => r.json())
-        ]);
-
-        if (!ttsRes.success) throw new Error(ttsRes.error || "Gagal membuat suara TTS.");
-        if (!bgmRes.success) throw new Error(bgmRes.error || "Gagal membuat musik BGM.");
-
-        // Construct scenes array for single generated video
-        const scenes = [{
-          type: 'generated',
-          sourceUrl: videoRes.videoUrl || videoRes.savedPath,
-          startTime: 0,
-          endTime: videoDuration,
-          textOverlay: { text: visualGuide.hook || dnaData.brandName, position: 'center', style: 'hook' }
-        }];
-
-        // 5. Stitching
-        setGenerateProgress({ progress: 90, message: "Menjahit video & audio akhir (FFmpeg)..." });
-        const stitchRes = await fetch('/api/generate/stitch', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            ttsBase64: ttsRes.audioBase64,
-            bgmBase64: bgmRes.audioBase64,
-            srtContent: ttsRes.srtContent,
-            scenes,
-            generatedVideoUrl: videoRes.savedPath || videoRes.videoUrl
-          })
-        }).then(r => r.json());
-
-        if (!stitchRes.success) throw new Error(stitchRes.error || "Gagal menjahit video.");
-        url = stitchRes.videoUrl;
-
+        // This flow previously generated video from scratch via the Dreamina browser-automation
+        // pipeline (src/lib/dreamina), which has been removed as part of the migration to a local
+        // ComfyUI pipeline. AI video generation without footage is unavailable until that pipeline
+        // lands (see docs/superpowers/plans/2026-07-28-comfyui-local-pipeline.md).
+        throw new Error("Generasi video AI tanpa footage belum tersedia (menunggu integrasi ComfyUI). Silakan unggah aset/footage terlebih dahulu.");
       } else {
         // === FLOW B: FOOTAGE AVAILABLE ===
         // 1. Director Phase 1 (Scripting)
@@ -341,15 +270,11 @@ export default function ClientLayout() {
 
         // Check if any filler video is needed
         const needsFiller = sceneRes.scenes?.some((s: any) => s.type === 'generated');
-        let videoRes = null;
         if (needsFiller) {
-          setGenerateProgress({ progress: 65, message: "Fase 4/5 (Opsional): Membuat video filler AI..." });
-          videoRes = await fetch('/api/generate/video-gen', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ prompt: visualGuide.hook || "Product showcase video" })
-          }).then(r => r.json());
-          if (!videoRes.success) throw new Error(videoRes.error || "Gagal membuat video filler.");
+          // AI filler-video generation previously used the Dreamina browser-automation pipeline,
+          // which has been removed as part of the migration to a local ComfyUI pipeline. Scenes
+          // requiring generated filler footage cannot be fulfilled until that pipeline lands.
+          throw new Error("Generasi video filler AI belum tersedia (menunggu integrasi ComfyUI). Pastikan aset footage mencukupi durasi target.");
         }
 
         // 4. BGM Gen
@@ -372,7 +297,7 @@ export default function ClientLayout() {
             bgmBase64: bgmRes.audioBase64,
             srtContent: ttsRes.srtContent,
             scenes: sceneRes.scenes,
-            generatedVideoUrl: videoRes?.savedPath || videoRes?.videoUrl || null
+            generatedVideoUrl: null
           })
         }).then(r => r.json());
 

@@ -62,6 +62,13 @@ function randomSeed(): number {
 
 // ─── 1. Image → Video (Stable Video Diffusion, core ComfyUI) ──────────────────
 
+/**
+ * Node id of the SaveVideo node in `buildImageToVideoWorkflow`.
+ * Address outputs by id — `/history` outputs are an object, so relying on the
+ * position of a flattened array is a bug waiting for a graph edit.
+ */
+export const IMAGE_TO_VIDEO_OUTPUT_NODE = '8';
+
 export interface ImageToVideoOptions {
   /** Filename inside ComfyUI's input directory (see ComfyUIClient.uploadFile). */
   imageName: string;
@@ -166,6 +173,9 @@ export function buildImageToVideoWorkflow(options: ImageToVideoOptions): ComfyWo
 
 // ─── 2. Background music (ACE-Step, core ComfyUI) ─────────────────────────────
 
+/** Node id of the SaveAudioMP3 node in `buildMusicWorkflow`. */
+export const MUSIC_OUTPUT_NODE = '8';
+
 export interface MusicOptions {
   /** Comma-separated style/genre/mood tags, e.g. "cinematic, uplifting, piano". */
   tags: string;
@@ -248,6 +258,9 @@ export function buildMusicWorkflow(options: MusicOptions): ComfyWorkflow {
 
 // ─── 3. Narration (VoxCPM2 TTS, CUSTOM NODE — contract unverified) ────────────
 
+/** Node id of the SaveAudioMP3 node in `buildNarrationWorkflow`. */
+export const NARRATION_OUTPUT_NODE = '2';
+
 export interface NarrationOptions {
   text: string;
   /** Voice design prompt, e.g. "A warm Indonesian female narrator". */
@@ -308,6 +321,23 @@ export function buildNarrationWorkflow(options: NarrationOptions): ComfyWorkflow
 }
 
 // ─── 4. Transcription (Whisper, CUSTOM NODE — contract unverified) ────────────
+
+/**
+ * Node id of the PreviewAny that reports the .srt path written by `Save SRT`.
+ * Both PreviewAny nodes emit a `text` payload, so `collectOutputText` without a
+ * node id returns the SRT path and the raw transcript in key order — always ask
+ * for one of these ids instead.
+ */
+export const TRANSCRIPTION_SRT_PATH_NODE = '4';
+/** Node id of the PreviewAny that reports the plain transcript text. */
+export const TRANSCRIPTION_TEXT_NODE = '5';
+/**
+ * Subfolder (under ComfyUI/output) that `Save SRT` writes into. The node is not
+ * an OUTPUT node, so `/history` carries no ComfyFileRef for the .srt — callers
+ * must build `{ filename, subfolder: this, type: 'output' }` themselves before
+ * downloading it through /view.
+ */
+export const TRANSCRIPTION_SRT_SUBFOLDER = 'srt';
 
 export interface TranscriptionOptions {
   /** Audio filename inside ComfyUI's input directory (see ComfyUIClient.uploadFile). */

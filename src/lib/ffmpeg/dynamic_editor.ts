@@ -2,6 +2,7 @@ import ffmpeg from 'fluent-ffmpeg';
 import ffmpegStatic from 'ffmpeg-static';
 import fs from 'fs';
 import path from 'path';
+import type { DirectorBlueprint } from '../google/director';
 
 /**
  * Dynamic post-processing stage for the ComfyUI pipeline.
@@ -380,3 +381,50 @@ export async function renderDynamicVideo(params: RenderParams): Promise<string> 
       .save(outputPath);
   });
 }
+
+export async function stitchBlueprint(
+  blueprint: DirectorBlueprint,
+  voicePath: string,
+  bgmPath: string,
+  assPath: string,
+  outputPath: string
+): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const outputDir = path.dirname(path.resolve(outputPath));
+    if (!fs.existsSync(outputDir)) {
+      fs.mkdirSync(outputDir, { recursive: true });
+    }
+
+    let command = ffmpeg();
+    let filterGraph: string[] = [];
+
+    // Add inputs and trim filters based on timeline
+    blueprint.timeline.forEach((clip, i) => {
+      command = command.input(clip.file);
+      const start = clip.start || 0;
+      filterGraph.push(`[${i}:v]trim=start=${start}:duration=${clip.duration},setpts=PTS-STARTPTS[v${i}];`);
+    });
+
+    const concatInputs = blueprint.timeline.map((_, i) => `[v${i}]`).join('');
+    filterGraph.push(`${concatInputs}concat=n=${blueprint.timeline.length}:v=1:a=0[vconcat];`);
+
+    command = command.input(voicePath).input(bgmPath);
+    const vIdx = blueprint.timeline.length;
+    const bIdx = blueprint.timeline.length + 1;
+
+    // Audio ducking + Ass Subtitles
+    filterGraph.push(`[${vIdx}:a][${bIdx}:a]amix=inputs=2:duration=first:dropout_transition=2[aout];`);
+    const escapedAss = escapeFilterPath(assPath);
+    filterGraph.push(`[vconcat]ass=${escapedAss}[vout]`);
+
+    command
+      .complexFilter(filterGraph.join(''))
+      .map('[vout]')
+      .map('[aout]')
+      .output(outputPath)
+      .on('end', () => resolve(outputPath))
+      .on('error', reject)
+      .run();
+  });
+}
+

@@ -36,8 +36,14 @@ import path from 'path';
 
 import type { DNAData, VisualGuideData } from '@/components/ClientLayout';
 import { generateImageFromCloudflare } from '@/lib/cloudflare/image';
-import { ComfyUIClient, type ComfyFileRef, type ComfyHistoryEntry } from '@/lib/comfyui/client';
 import {
+  ComfyUIClient,
+  ComfyUIError,
+  type ComfyFileRef,
+  type ComfyHistoryEntry,
+} from '@/lib/comfyui/client';
+import {
+  DEFAULT_SVD_CHECKPOINT,
   IMAGE_TO_VIDEO_OUTPUT_NODE,
   MUSIC_OUTPUT_NODE,
   NARRATION_OUTPUT_NODE,
@@ -92,15 +98,62 @@ export interface GenerateContentResult {
 // Longer videos need several SVD clips concatenated, which is a bigger change
 // than this action — see the task report.
 
+/**
+ * Frames the configured SVD checkpoint is built for. Every extra frame is bought
+ * duration, so take the 25 when the checkpoint supports it.
+ *
+ * The pairing is the contract `workflows.ts` documents from the checkpoints
+ * themselves — 14 for `svd.safetensors`, 25 for `svd_xt.safetensors` — so it is
+ * derived from the checkpoint name rather than assumed. `video_frames` is a plain
+ * INT widget, so ComfyUI will not reject 25 on the 14-frame checkpoint; it simply
+ * produces a worse clip, which is why this is not defaulted to 25 blindly.
+ * `COMFYUI_SVD_VIDEO_FRAMES` overrides for checkpoints named something else.
+ */
+function resolveVideoFrames(): number {
+  const override = Math.trunc(Number(process.env.COMFYUI_SVD_VIDEO_FRAMES));
+  if (Number.isFinite(override) && override > 0) return override;
+
+  const checkpoint = (process.env.COMFYUI_SVD_CHECKPOINT ?? DEFAULT_SVD_CHECKPOINT).trim();
+  const stem = checkpoint.split(/[\\/]/).pop()?.replace(/\.[^.]+$/, '') ?? '';
+  // Matches svd_xt, svd_xt_1_1, svd-xt … without matching e.g. svd_next.
+  return /(^|[_\-.])xt([_\-.]|$)/i.test(stem) ? 25 : 14;
+}
+
 /** Frames SVD will produce. Must match the checkpoint: 14 = svd, 25 = svd_xt. */
-const SVD_VIDEO_FRAMES = Number(process.env.COMFYUI_SVD_VIDEO_FRAMES ?? 14) || 14;
-/** Playback + conditioning frame rate for SVD. */
+const SVD_VIDEO_FRAMES = resolveVideoFrames();
+/**
+ * Playback + conditioning frame rate for SVD. The builder feeds this to both
+ * `SVD_img2vid_Conditioning` and `CreateVideo`, so it also divides the clip
+ * length — 6 is the low end of SVD's conditioning range and therefore the
+ * longest clip the frame budget can buy.
+ */
 const SVD_FPS = 6;
-/** Vertical 9:16 so the SVD frame matches the 1080x1920 render without a hard crop. */
+/**
+ * Portrait 9:16, so the SVD frame matches the 1080x1920 render target.
+ *
+ * This is a tradeoff, not a free win: SVD is trained at 1024x576 landscape, so
+ * 576x1024 is off-distribution and typically gives weaker, less coherent motion.
+ * It is still the right call here because the alternative is generating landscape
+ * and letting `dynamic_editor` crop ~44% of the frame width away — that discards
+ * the subject as often as not, and the Ken Burns push then works on what little
+ * survives. Weaker motion over the right subject beats good motion over a
+ * mis-framed one. Revisit if a portrait-tuned SVD checkpoint is installed.
+ */
 const SVD_WIDTH = 576;
 const SVD_HEIGHT = 1024;
 
-/** Speaking rate the AI Director already assumes for Bahasa Indonesia narration. */
+/**
+ * ASSUMPTION, NOT A MEASUREMENT. Bahasa Indonesia speaking rate used to predict
+ * how long a script will take VoxCPM2 to read. 2.5 is the rate the existing AI
+ * Director route already assumes (`Math.round(targetDuration * 2.5)` in
+ * src/app/api/generate/director/route.ts); nobody has measured VoxCPM2's actual
+ * pace, and there is no ffprobe in this project to measure the rendered audio.
+ *
+ * It is the only thing standing between a full narration and `dynamic_editor`'s
+ * `-shortest`, so every run reports it as an assumption in `warnings` — an
+ * operator should learn the estimate is shakier than it looks here, not from a
+ * truncation warning buried in the render log.
+ */
 const WORDS_PER_SECOND = 2.5;
 
 const SRT_BASE_NAME = 'venturo_subtitles';
@@ -109,12 +162,45 @@ function videoDurationSeconds(): number {
   return SVD_VIDEO_FRAMES / SVD_FPS;
 }
 
-/** Cuts the script down to what fits `seconds` of speech. Reports what it removed. */
+/** Sentences, keeping their terminator; a trailing fragment counts as one. */
+function splitSentences(script: string): string[] {
+  return (script.match(/[^.!?…]+[.!?…]+|[^.!?…]+$/g) ?? [])
+    .map((sentence) => sentence.trim())
+    .filter(Boolean);
+}
+
+function countWords(text: string): number {
+  return text.split(/\s+/).filter(Boolean).length;
+}
+
+/**
+ * Cuts the script down to what fits `seconds` of speech, preferring the last
+ * complete sentence that fits. A mid-sentence guillotine reads as a broken clip;
+ * a short but finished sentence at least reads as deliberate. Falls back to a
+ * hard word slice only when even the first sentence overruns the budget.
+ */
 function budgetNarration(script: string, seconds: number): { text: string; droppedWords: number } {
-  const words = script.trim().split(/\s+/).filter(Boolean);
+  const trimmed = script.trim();
+  const totalWords = countWords(trimmed);
   const maxWords = Math.max(1, Math.round(seconds * WORDS_PER_SECOND));
-  if (words.length <= maxWords) return { text: words.join(' '), droppedWords: 0 };
-  return { text: words.slice(0, maxWords).join(' '), droppedWords: words.length - maxWords };
+  if (totalWords <= maxWords) {
+    return { text: trimmed.split(/\s+/).filter(Boolean).join(' '), droppedWords: 0 };
+  }
+
+  const kept: string[] = [];
+  let keptWords = 0;
+  for (const sentence of splitSentences(trimmed)) {
+    const words = countWords(sentence);
+    if (keptWords + words > maxWords) break;
+    kept.push(sentence);
+    keptWords += words;
+  }
+  if (kept.length > 0) {
+    return { text: kept.join(' '), droppedWords: totalWords - keptWords };
+  }
+
+  const words = trimmed.split(/\s+/).filter(Boolean);
+  return { text: words.slice(0, maxWords).join(' '), droppedWords: totalWords - maxWords };
 }
 
 // ─── Prompt composition ───────────────────────────────────────────────────────
@@ -163,6 +249,27 @@ function composeVoiceDescription(dna: DNAData): string {
 }
 
 // ─── ComfyUI output helpers ───────────────────────────────────────────────────
+
+/**
+ * A message an operator can act on.
+ *
+ * Two things matter here. A thrown non-Error would otherwise stringify to the
+ * literal "undefined" via `.message`, and `ComfyUIError.details` carries
+ * ComfyUI's `node_errors` — which, for the two node packs `workflows.ts` marks
+ * UNVERIFIED-PENDING-INSTALL, is exactly the payload that names the missing class
+ * or the wrong input key. Dropping it turns a five-second fix into a hunt.
+ */
+function describeError(error: unknown): string {
+  const message = (error instanceof Error ? error.message : String(error)) || 'Kesalahan tidak diketahui.';
+  if (!(error instanceof ComfyUIError) || error.details === undefined) return message;
+  let details: string;
+  try {
+    details = JSON.stringify(error.details);
+  } catch {
+    details = String(error.details);
+  }
+  return `${message} — detail ComfyUI: ${details}`;
+}
 
 /**
  * The one file a given terminal node produced. Addressed by node id, never by
@@ -250,6 +357,13 @@ export async function generateContentAction(
           `dengan frame lebih banyak.`,
       );
     }
+    // Reported on every run, not only when the script was cut: the fit is a
+    // prediction, and if VoxCPM2 speaks slower than assumed the render will drop
+    // the tail of even an "already fitting" script.
+    warnings.push(
+      `Panjang narasi diperkirakan dari asumsi ${WORDS_PER_SECOND} kata/detik dan belum pernah ` +
+        `diukur dari VoxCPM2. Jika TTS bicara lebih lambat, ekor narasi akan terpotong saat render.`,
+    );
 
     fs.mkdirSync(workDir, { recursive: true });
 
@@ -283,32 +397,45 @@ export async function generateContentAction(
     const voicePath = await downloadTo(comfy, narrationFile, workDir, 'narration');
 
     // ── Stage 3: subtitles (Whisper). Needs the narration back inside ComfyUI's
-    // input directory. Best-effort: dynamic_editor renders fine without an .srt,
-    // and the Whisper node pack is the least verified part of the stack — a
-    // failure here is reported as a warning rather than losing the whole run.
+    // input directory, because LoadAudio reads from there and not from our disk.
+    //
+    // Exactly one thing here is soft: ComfyUI REJECTING the graph. Validation
+    // happens at POST /prompt, so an uninstalled `Apply Whisper` / `Save SRT` — the
+    // two classes workflows.ts marks UNVERIFIED-PENDING-INSTALL — fails there, in a
+    // second, with node_errors naming the culprit. That case degrades to a warning
+    // and a render without captions, which dynamic_editor supports.
+    //
+    // Everything else stays fatal by design. Local file I/O, the upload, the /view
+    // download and above all `waitForPrompt` are outside the catch: a hung Whisper
+    // graph must surface as its real 10-minute timeout, not as a shrug.
     let srtPath: string | undefined;
-    try {
-      const audioUpload = await comfy.uploadFile(
-        fs.readFileSync(voicePath),
-        `venturo_narration_${timestamp}${path.extname(voicePath)}`,
-      );
-      const audioName = audioUpload.subfolder
-        ? `${audioUpload.subfolder}/${audioUpload.name}`
-        : audioUpload.name;
+    const audioUpload = await comfy.uploadFile(
+      fs.readFileSync(voicePath),
+      `venturo_narration_${timestamp}${path.extname(voicePath)}`,
+    );
+    const audioName = audioUpload.subfolder
+      ? `${audioUpload.subfolder}/${audioUpload.name}`
+      : audioUpload.name;
 
-      const transcriptionEntry = await comfy.runWorkflow(
+    let transcriptionPromptId: string | undefined;
+    try {
+      transcriptionPromptId = await comfy.queuePrompt(
         buildTranscriptionWorkflow({ audioName, srtName: SRT_BASE_NAME }),
       );
+    } catch (error) {
+      warnings.push(
+        `Subtitle dilewati, ComfyUI menolak workflow transkripsi ` +
+          `(kemungkinan node Whisper belum terpasang): ${describeError(error)}`,
+      );
+    }
+
+    if (transcriptionPromptId) {
+      const transcriptionEntry = await comfy.waitForPrompt(transcriptionPromptId);
       const [reportedSrtPath] = comfy.collectOutputText(
         transcriptionEntry,
         TRANSCRIPTION_SRT_PATH_NODE,
       );
       srtPath = await downloadTo(comfy, resolveSrtRef(reportedSrtPath), workDir, 'subtitles');
-    } catch (error) {
-      warnings.push(
-        `Subtitle dilewati: ${(error as Error).message}`,
-      );
-      srtPath = undefined;
     }
 
     // ── Stage 4: background music (ACE-Step), generated at the video's length.
@@ -358,7 +485,9 @@ export async function generateContentAction(
     console.error('[GenerateContent] Pipeline gagal:', error);
     return {
       success: false,
-      message: (error as Error).message || 'Gagal membuat video.',
+      // describeError, not `.message`: it survives non-Error throws and carries
+      // ComfyUI's node_errors through to the operator.
+      message: `Gagal membuat video. ${describeError(error)}`,
       warnings,
     };
   } finally {

@@ -398,7 +398,7 @@ export async function generateContentAction(
         videoPath,
         voicePath,
         bgmPath,
-        srtPath,
+        assPath,
         outputPath,
         durationSeconds: duration,
       });

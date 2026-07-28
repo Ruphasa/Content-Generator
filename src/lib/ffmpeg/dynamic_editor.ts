@@ -59,8 +59,8 @@ export interface RenderParams {
   voicePath: string;
   /** Background music produced by ACE-Step. Omit to render without music. */
   bgmPath?: string;
-  /** Whisper subtitles (.srt). Omit to render without burned-in captions. */
-  srtPath?: string;
+  /** Subtitles (.ass). Omit to render without burned-in captions. */
+  assPath?: string;
   /** Destination .mp4 path. */
   outputPath: string;
   /**
@@ -192,27 +192,12 @@ function buildAudioChain(hasBgm: boolean): string[] {
 }
 
 /**
- * Burned-in, styled captions. The plan calls for "dynamic subtitles", so this
- * uses the libass `subtitles` filter with a real `force_style` and renders the
+ * Burned-in, styled captions. Uses the libass `ass` filter and renders the
  * text into the picture, rather than muxing a passive soft-subtitle track.
  */
-function buildSubtitleChain(srtPath: string): string[] {
-  const style = [
-    'FontName=Arial',
-    'FontSize=42',
-    'Bold=1',
-    'PrimaryColour=&H00FFFFFF',
-    'OutlineColour=&H00000000',
-    'BorderStyle=1',
-    'Outline=3',
-    'Shadow=1',
-    'Alignment=2',
-    'MarginV=140',
-  ].join(',');
-
-  // The filename is escaped rather than quoted (see escapeFilterPath); the style
-  // string has no such constraint and stays quoted so its commas survive.
-  return [`[v_kb]subtitles=${escapeFilterPath(srtPath)}:force_style='${style}'[v_out]`];
+function buildSubtitleChain(assPath: string): string[] {
+  // The filename is escaped rather than quoted (see escapeFilterPath).
+  return [`[v_kb]ass=${escapeFilterPath(assPath)}[v_out]`];
 }
 
 /** Input durations harvested from ffmpeg's own stderr banner, keyed by input index. */
@@ -287,7 +272,7 @@ export async function renderDynamicVideo(params: RenderParams): Promise<string> 
     videoPath,
     voicePath,
     bgmPath,
-    srtPath,
+    assPath,
     outputPath,
     durationSeconds = DEFAULT_DURATION,
     width = DEFAULT_WIDTH,
@@ -305,12 +290,12 @@ export async function renderDynamicVideo(params: RenderParams): Promise<string> 
   // Optional inputs are dropped rather than trusted, so a stale path from an
   // upstream step cannot take the whole render down.
   const bgmFile = bgmPath && fs.existsSync(bgmPath) ? bgmPath : undefined;
-  const srtFile = srtPath && fs.existsSync(srtPath) ? srtPath : undefined;
+  const assFile = assPath && fs.existsSync(assPath) ? assPath : undefined;
   if (bgmPath && !bgmFile) {
     console.warn(`[DynamicEditor] BGM diabaikan, file tidak ditemukan: ${bgmPath}`);
   }
-  if (srtPath && !srtFile) {
-    console.warn(`[DynamicEditor] Subtitle diabaikan, file tidak ditemukan: ${srtPath}`);
+  if (assPath && !assFile) {
+    console.warn(`[DynamicEditor] Subtitle diabaikan, file tidak ditemukan: ${assPath}`);
   }
 
   const outputDir = path.dirname(path.resolve(outputPath));
@@ -322,11 +307,11 @@ export async function renderDynamicVideo(params: RenderParams): Promise<string> 
 
   const filters = [
     ...buildKenBurnsChain(width, height, fps, duration),
-    ...(srtFile ? buildSubtitleChain(srtFile) : []),
+    ...(assFile ? buildSubtitleChain(assFile) : []),
     ...buildAudioChain(Boolean(bgmFile)),
   ];
   // Without subtitles the Ken Burns output is already the final video node.
-  const videoOut = srtFile ? 'v_out' : 'v_kb';
+  const videoOut = assFile ? 'v_out' : 'v_kb';
   const filterGraph = filters.join(';');
 
   return new Promise<string>((resolve, reject) => {

@@ -32,6 +32,7 @@ import { generateAssFile, type WordTimestamp } from '@/lib/ffmpeg/subtitles';
 export interface GenerateContentInput {
   dna: DNAData;
   visualGuide: VisualGuideData;
+  assetFolder?: { id: string; name: string; remoteUrls?: { url: string; filename?: string }[] };
   narrationScript?: string;
   imagePrompt?: string;
   bgmTags?: string;
@@ -242,8 +243,33 @@ export async function generateContentAction(
     fs.mkdirSync(workDir, { recursive: true });
 
     // 1. Scan b-roll
-    const bRollDir = path.join(process.cwd(), 'public', 'b-roll');
+    let bRollDir = path.join(process.cwd(), 'public', 'b-roll'); // Fallback
     let assets: any[] = [];
+
+    // If user selected a folder with remote URLs, download them to a temp folder
+    if (input.assetFolder?.remoteUrls && input.assetFolder.remoteUrls.length > 0) {
+      bRollDir = path.join(workDir, 'b-roll');
+      fs.mkdirSync(bRollDir, { recursive: true });
+
+      for (let i = 0; i < input.assetFolder.remoteUrls.length; i++) {
+        const task = input.assetFolder.remoteUrls[i];
+        if (!task.url.trim()) continue;
+
+        try {
+          const response = await fetch(task.url);
+          if (!response.ok) continue;
+
+          const arrayBuffer = await response.arrayBuffer();
+          let filename = task.filename || `clip_${i}.mp4`;
+          if (!filename.includes('.')) filename += '.mp4';
+
+          fs.writeFileSync(path.join(bRollDir, filename), Buffer.from(arrayBuffer));
+        } catch (e) {
+          console.error('Failed to download asset:', task.url, e);
+        }
+      }
+    }
+
     if (fs.existsSync(bRollDir)) {
       assets = await scanAssets(bRollDir);
     }

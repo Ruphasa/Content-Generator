@@ -271,6 +271,7 @@ export async function generateContentAction(
           if (!task.url.trim()) continue;
           attempted++;
 
+          let destination: string | undefined;
           try {
             const response = await fetch(task.url, {
               signal: AbortSignal.timeout(ASSET_FETCH_TIMEOUT_MS),
@@ -305,7 +306,7 @@ export async function generateContentAction(
             if (!/\.(mp4|mov|m4v|webm|mkv)$/i.test(filename)) filename += '.mp4';
 
             const safeName = `${i}_${path.basename(filename)}`;
-            const destination = path.join(bRollDir, safeName);
+            destination = path.join(bRollDir, safeName);
 
             await pipeline(
               Readable.fromWeb(response.body as any),
@@ -314,6 +315,7 @@ export async function generateContentAction(
             downloaded++;
           } catch (e) {
             console.error('Failed to download asset:', task.url, e);
+            if (destination) fs.rmSync(destination, { force: true });
           }
         }
 

@@ -373,23 +373,21 @@ export async function renderDynamicVideo(params: RenderParams): Promise<string> 
  * FFmpeg's `concat` filter requires every input stream to share identical
  * resolution, SAR and framerate, but real B-roll assets rarely agree on any
  * of the three - `concat` then fails with EINVAL and the whole generation
- * dies. Each clip is therefore normalised onto the same `width`x`height`
- * canvas (letterboxed, never cropped or stretched, via `scale` +
- * `force_original_aspect_ratio=decrease` + `pad`), the same SAR (`setsar=1`)
- * and the same `fps` before it reaches `concat`. The muxed output is also
- * pinned to `fps` so the container's framerate matches the normalised
- * streams that produced it.
+ * dies. Each clip is therefore normalised onto the same canvas (letterboxed,
+ * never cropped or stretched, via `scale` + `force_original_aspect_ratio=decrease`
+ * + `pad`), the same SAR (`setsar=1`) and the same framerate before it reaches
+ * `concat`. The muxed output is also pinned to that framerate so the
+ * container's framerate matches the normalised streams that produced it.
  *
- * `width`, `height` and `fps` default to the same `DEFAULT_WIDTH` /
- * `DEFAULT_HEIGHT` / `DEFAULT_FPS` constants `renderDynamicVideo` uses, so
- * both render paths land on the same canvas unless a caller overrides them.
+ * The target canvas is the module's `DEFAULT_WIDTH` / `DEFAULT_HEIGHT` /
+ * `DEFAULT_FPS` constants - the same defaults `renderDynamicVideo` uses - so
+ * both render paths land on the same canvas. This is not parameterised on the
+ * signature: the global constraint on this module is that no existing
+ * signature changes, to avoid breaking other call sites.
  */
 export async function stitchBlueprint(
   blueprint: DirectorBlueprint,
   voicePath: string,
-  width: number = DEFAULT_WIDTH,
-  height: number = DEFAULT_HEIGHT,
-  fps: number = DEFAULT_FPS,
   bgmPath?: string,
   assPath?: string,
   outputPath?: string
@@ -401,6 +399,11 @@ export async function stitchBlueprint(
       fs.mkdirSync(outputDir, { recursive: true });
     }
 
+    // Hardcoded 9:16 target canvas (see doc comment above).
+    const targetWidth = DEFAULT_WIDTH;
+    const targetHeight = DEFAULT_HEIGHT;
+    const targetFps = DEFAULT_FPS;
+
     let command = ffmpeg();
     const filterGraph: string[] = [];
 
@@ -411,8 +414,8 @@ export async function stitchBlueprint(
       command = command.input(clip.file);
       const start = clip.start || 0;
       const normalizeFilter =
-        `scale=${width}:${height}:force_original_aspect_ratio=decrease,` +
-        `pad=${width}:${height}:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=${fps}`;
+        `scale=${targetWidth}:${targetHeight}:force_original_aspect_ratio=decrease,` +
+        `pad=${targetWidth}:${targetHeight}:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=${targetFps}`;
       filterGraph.push(
         `[${i}:v]${normalizeFilter},trim=start=${start}:duration=${clip.duration},setpts=PTS-STARTPTS[v${i}];`
       );
@@ -444,7 +447,7 @@ export async function stitchBlueprint(
       .complexFilter(filterGraph.join(''))
       .map(videoOutTag)
       .map(audioOutTag)
-      .outputOptions(['-c:v libx264', '-c:a aac', '-pix_fmt yuv420p', `-r ${fps}`])
+      .outputOptions(['-c:v libx264', '-c:a aac', '-pix_fmt yuv420p', `-r ${targetFps}`])
       .output(targetOutput)
       .on('stderr', (line: string) => {
         stderrLines.push(line);

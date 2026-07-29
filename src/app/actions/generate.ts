@@ -28,6 +28,7 @@ import {
 } from '@/lib/comfyui/workflows';
 import { scanAssets } from '@/lib/ffmpeg/probe';
 import { createEditingBlueprint } from '@/lib/google/director';
+import { generateDirectorPlan } from '@/lib/ai/director';
 import { renderDynamicVideo, stitchBlueprint } from '@/lib/ffmpeg/dynamic_editor';
 import { generateAssFile, type WordTimestamp } from '@/lib/ffmpeg/subtitles';
 
@@ -268,7 +269,7 @@ export async function generateContentAction(
         // alongside the strictly-serial ComfyUI queueing later in this action.
         for (let i = 0; i < remoteUrls.length; i++) {
           const task = remoteUrls[i];
-          if (!task.url.trim()) continue;
+          if (!task.url.trim() || !/^https?:\/\//i.test(task.url.trim())) continue;
           attempted++;
 
           let destination: string | undefined;
@@ -343,6 +344,7 @@ export async function generateContentAction(
     let narrationText = '';
     let blueprint: any = null;
     let frameName = '';
+    let svdBgmTags = '';
 
     if (useBRollPath) {
       // ── Stage B-Roll 1: Blueprint
@@ -358,7 +360,12 @@ export async function generateContentAction(
       
     } else {
       // ── Stage SVD 1: Narration script setup and Cloudflare T2I
-      const script = composeNarration(input);
+      const directorPlan = await generateDirectorPlan({ dna: input.dna, visualGuide: input.visualGuide });
+
+      const script = input.narrationScript?.trim() || directorPlan.narrationScript;
+      const finalImagePrompt = input.imagePrompt?.trim() || directorPlan.imagePrompt;
+      svdBgmTags = input.bgmTags?.trim() || directorPlan.bgmTags;
+
       if (!script) {
         return {
           success: false,
@@ -382,7 +389,7 @@ export async function generateContentAction(
       );
 
       const framePath = path.join(workDir, 'frame.png');
-      const imageOk = await generateImageFromCloudflare(composeImagePrompt(input), framePath);
+      const imageOk = await generateImageFromCloudflare(finalImagePrompt, framePath);
       if (!imageOk || !fs.existsSync(framePath)) {
         return {
           success: false,
@@ -450,7 +457,7 @@ export async function generateContentAction(
     }
 
     // ── Stage 4: Background music (ACE-Step)
-    const bgmPromptStr = useBRollPath && blueprint ? blueprint.bgm_prompt : (input.bgmTags?.trim() || composeBgmTags(input));
+    const bgmPromptStr = useBRollPath && blueprint ? blueprint.bgm_prompt : (svdBgmTags || input.bgmTags?.trim() || composeBgmTags(input));
     const musicEntry = await comfy.runWorkflow(
       buildMusicWorkflow({
         tags: bgmPromptStr,

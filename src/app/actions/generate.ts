@@ -3,7 +3,7 @@
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
-import { Readable } from 'node:stream';
+import { Readable, Transform } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 
 import type { DNAData, VisualGuideData } from '@/components/ClientLayout';
@@ -66,6 +66,62 @@ const SVD_HEIGHT = 1024;
 const WORDS_PER_SECOND = 2.5;
 const MAX_ASSET_BYTES = 500 * 1024 * 1024; // 500MB per remote B-Roll clip
 const ASSET_FETCH_TIMEOUT_MS = 120_000;
+/**
+ * Bytes read back from the head of a finished download to prove it is binary
+ * media and not an HTML sign-in / quota / error page served with HTTP 200.
+ */
+const ASSET_HTML_SNIFF_BYTES = 512;
+/** Markers that identify an HTML page masquerading as a video download. */
+const HTML_SNIFF_MARKERS = ['<html', '<!doctype', '<head', 'google drive', 'accounts.google.com'];
+
+/** Raised when a stream exceeds `MAX_ASSET_BYTES`, so the caller can explain why. */
+class AssetTooLargeError extends Error {
+  constructor(limitBytes: number) {
+    super(`Ukuran aset melebihi batas ${Math.round(limitBytes / 1024 / 1024)}MB.`);
+    this.name = 'AssetTooLargeError';
+  }
+}
+
+/**
+ * Transform that aborts the pipeline once more than `limitBytes` have passed
+ * through. Enforced on the stream itself rather than on `content-length`, since
+ * that header is optional and can lie.
+ */
+function createByteLimiter(limitBytes: number): Transform {
+  let total = 0;
+  return new Transform({
+    transform(chunk: Buffer, _encoding, callback) {
+      total += chunk.length;
+      if (total > limitBytes) {
+        callback(new AssetTooLargeError(limitBytes));
+        return;
+      }
+      callback(null, chunk);
+    },
+  });
+}
+
+/**
+ * True when the head of `filePath` looks like an HTML document rather than a
+ * media container. Runs on every download regardless of size: a Google Drive
+ * link that is not shared publicly answers HTTP 200 with hundreds of KB of
+ * sign-in HTML, which a size-gated sniff would wave straight through.
+ */
+function looksLikeHtml(filePath: string): boolean {
+  let fd: number | undefined;
+  try {
+    const buffer = Buffer.alloc(ASSET_HTML_SNIFF_BYTES);
+    fd = fs.openSync(filePath, 'r');
+    const bytesRead = fs.readSync(fd, buffer, 0, ASSET_HTML_SNIFF_BYTES, 0);
+    const head = buffer.subarray(0, bytesRead).toString('utf8').toLowerCase();
+    return HTML_SNIFF_MARKERS.some((marker) => head.includes(marker));
+  } catch {
+    // Unreadable head is itself disqualifying; treat it as unusable.
+    return true;
+  } finally {
+    if (fd !== undefined) fs.closeSync(fd);
+  }
+}
 
 function videoDurationSeconds(): number {
   return SVD_VIDEO_FRAMES / SVD_FPS;
@@ -300,32 +356,36 @@ function toDirectDriveUrl(url: string): string {
             const safeName = `${i}_${path.basename(filename)}`;
             destination = path.join(bRollDir, safeName);
 
+            // The byte limiter aborts the pipeline mid-stream once the clip
+            // exceeds MAX_ASSET_BYTES, so a missing or lying content-length
+            // header cannot fill the disk.
             await pipeline(
               Readable.fromWeb(response.body as any),
+              createByteLimiter(MAX_ASSET_BYTES),
               fs.createWriteStream(destination),
             );
 
-            // Validate that downloaded file is a real binary video, not an HTML error/login page
-            const stat = fs.statSync(destination);
-            if (stat.size < 10000) {
-              const headBuffer = Buffer.alloc(500);
-              const fd = fs.openSync(destination, 'r');
-              fs.readSync(fd, headBuffer, 0, 500, 0);
-              fs.closeSync(fd);
-              const headText = headBuffer.toString('utf8');
-              if (headText.includes('<html') || headText.includes('<!DOCTYPE') || headText.includes('Google Drive')) {
-                console.error(`[AssetDownload] File "${filename}" is HTML page instead of MP4. Removing.`);
-                fs.rmSync(destination, { force: true });
-                warnings.push(`Aset "${filename}" dilewati: Tautan Google Drive tidak publik / membutuhkan konfirmasi hak akses.`);
-                continue;
-              }
+            // Validate that downloaded file is a real binary video, not an HTML
+            // error/login page. Unconditional: a private Drive link returns
+            // HTTP 200 with a full-size HTML page, not a tiny one.
+            if (looksLikeHtml(destination)) {
+              console.error(`[AssetDownload] File "${filename}" is HTML page instead of MP4. Removing.`);
+              fs.rmSync(destination, { force: true });
+              warnings.push(`Aset "${filename}" dilewati: Tautan Google Drive tidak publik / membutuhkan konfirmasi hak akses.`);
+              continue;
             }
 
+            const stat = fs.statSync(destination);
             downloaded++;
             console.log(`[AssetDownload] Berhasil mendownload B-Roll [${downloaded}/${remoteUrls.length}]: ${safeName} (${(stat.size / 1024 / 1024).toFixed(1)} MB)`);
           } catch (e) {
             console.error('Failed to download asset:', targetUrl, e);
             if (destination) fs.rmSync(destination, { force: true });
+            if (e instanceof AssetTooLargeError) {
+              warnings.push(
+                `Aset "${task.filename || task.url}" dilewati: ${e.message} Perkecil file atau bagi menjadi beberapa klip.`,
+              );
+            }
           }
         }
 
@@ -364,7 +424,9 @@ function toDirectDriveUrl(url: string): string {
       // Fix blueprint timeline paths
       blueprint.timeline.forEach((clip: any) => {
         clip.file = path.join(bRollDir, path.basename(clip.file));
-        duration += clip.duration;
+        // `duration` comes from model output; coerce so a stringy "4" cannot
+        // turn the accumulator into a string and break `.toFixed`/`Math.ceil`.
+        duration += Number(clip.duration) || 0;
       });
       narrationText = blueprint.tts_script;
       console.log(`[Pipeline] Naskah Voiceover B-Roll AI Director (${duration.toFixed(1)}s):\n"${narrationText}"`);
@@ -373,6 +435,11 @@ function toDirectDriveUrl(url: string): string {
       console.log('[Pipeline] Skenario 1 Aktif: Mode Single Image (Cloudflare T2I + ComfyUI SVD).');
       // ── Stage SVD 1: Narration script setup and Cloudflare T2I
       const directorPlan = await generateDirectorPlan({ dna: input.dna, visualGuide: input.visualGuide });
+      if (directorPlan.usedFallback) {
+        warnings.push(
+          `AI Director tidak aktif — memakai naskah cadangan dari Visual Guide. ${directorPlan.fallbackReason ?? ''}`.trim(),
+        );
+      }
 
       const script = input.narrationScript?.trim() || directorPlan.narrationScript;
       const finalImagePrompt = input.imagePrompt?.trim() || directorPlan.imagePrompt;
@@ -472,8 +539,7 @@ function toDirectDriveUrl(url: string): string {
     }
 
     // ── Stage 4: Background music (ACE-Step)
-    let bgmPath: string | undefined;
-    const bgmPromptStr = useBRollPath && blueprint ? blueprint.bgm_prompt : (svdBgmTags || input.bgmTags?.trim() || composeBgmTags(input));
+    const bgmPromptStr =useBRollPath && blueprint ? blueprint.bgm_prompt : (svdBgmTags || input.bgmTags?.trim() || composeBgmTags(input));
     console.log(`[Pipeline] Tahap 4: Meng-generate musik latar BGM via ACE-Step di ComfyUI (Prompt: "${bgmPromptStr}")...`);
     const musicEntry = await comfy.runWorkflow(
       buildMusicWorkflow({
@@ -482,7 +548,7 @@ function toDirectDriveUrl(url: string): string {
       }),
     );
     const musicFile = requireOutputFile(comfy, musicEntry, MUSIC_OUTPUT_NODE, 'BGM');
-    bgmPath = await downloadTo(comfy, musicFile, workDir, 'bgm');
+    const bgmPath = await downloadTo(comfy, musicFile, workDir, 'bgm');
 
     // ── Stage 5: Render
     console.log('[Pipeline] Tahap 5: Merender video akhir & audio mixing via FFmpeg...');

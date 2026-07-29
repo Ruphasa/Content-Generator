@@ -426,13 +426,18 @@ export async function stitchBlueprint(
 
     command = command.input(voicePath);
     const vIdx = blueprint.timeline.length;
-    let audioOutTag = `[${vIdx}:a]`;
 
+    // Audio always leaves through the filtergraph as [aout]. fluent-ffmpeg's
+    // `.map()` bracket-wraps whatever it is given, so a raw input specifier like
+    // `1:a` would be re-read as a filtergraph label that does not exist
+    // ("Output with label '1:a' does not exist in any defined filter graph").
+    // With no BGM the voice is passed through `anull` purely to give it a label.
     if (bgmPath && fs.existsSync(bgmPath)) {
       command = command.input(bgmPath);
       const bIdx = blueprint.timeline.length + 1;
       filterGraph.push(`[${vIdx}:a][${bIdx}:a]amix=inputs=2:duration=first:dropout_transition=2[aout];`);
-      audioOutTag = '[aout]';
+    } else {
+      filterGraph.push(`[${vIdx}:a]anull[aout];`);
     }
 
     let videoOutTag = '[vconcat]';
@@ -442,11 +447,14 @@ export async function stitchBlueprint(
       videoOutTag = '[vout]';
     }
 
+    // A trailing ';' left by the last chain is not valid filtergraph syntax.
+    const complexFilter = filterGraph.join('').replace(/;\s*$/, '');
+
     const stderrLines: string[] = [];
     command
-      .complexFilter(filterGraph.join(''))
+      .complexFilter(complexFilter)
       .map(videoOutTag)
-      .map(audioOutTag)
+      .map('[aout]')
       .outputOptions(['-c:v libx264', '-c:a aac', '-pix_fmt yuv420p', `-r ${targetFps}`])
       .output(targetOutput)
       .on('stderr', (line: string) => {
@@ -458,7 +466,7 @@ export async function stitchBlueprint(
         reject(
           new Error(
             `Gagal menjahit video: ${err.message}\n` +
-              `--- filter_complex ---\n${filterGraph.join('')}\n` +
+              `--- filter_complex ---\n${complexFilter}\n` +
               `--- ffmpeg stderr ---\n${stderrLines.join('\n')}`
           )
         );

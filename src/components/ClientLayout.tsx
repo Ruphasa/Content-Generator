@@ -186,6 +186,12 @@ export default function ClientLayout() {
         dna: dnaData,
         visualGuide: visualGuide,
         assetFolder: selectedFolder
+          ? {
+              id: selectedFolder.id,
+              name: selectedFolder.name,
+              remoteUrls: selectedFolder.remoteUrls,
+            }
+          : undefined,
       });
 
       if (result.warnings && result.warnings.length > 0) {

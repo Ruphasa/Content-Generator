@@ -367,9 +367,29 @@ export async function renderDynamicVideo(params: RenderParams): Promise<string> 
   });
 }
 
+/**
+ * Stitches a multi-clip B-roll blueprint into one video.
+ *
+ * FFmpeg's `concat` filter requires every input stream to share identical
+ * resolution, SAR and framerate, but real B-roll assets rarely agree on any
+ * of the three - `concat` then fails with EINVAL and the whole generation
+ * dies. Each clip is therefore normalised onto the same `width`x`height`
+ * canvas (letterboxed, never cropped or stretched, via `scale` +
+ * `force_original_aspect_ratio=decrease` + `pad`), the same SAR (`setsar=1`)
+ * and the same `fps` before it reaches `concat`. The muxed output is also
+ * pinned to `fps` so the container's framerate matches the normalised
+ * streams that produced it.
+ *
+ * `width`, `height` and `fps` default to the same `DEFAULT_WIDTH` /
+ * `DEFAULT_HEIGHT` / `DEFAULT_FPS` constants `renderDynamicVideo` uses, so
+ * both render paths land on the same canvas unless a caller overrides them.
+ */
 export async function stitchBlueprint(
   blueprint: DirectorBlueprint,
   voicePath: string,
+  width: number = DEFAULT_WIDTH,
+  height: number = DEFAULT_HEIGHT,
+  fps: number = DEFAULT_FPS,
   bgmPath?: string,
   assPath?: string,
   outputPath?: string
@@ -382,13 +402,20 @@ export async function stitchBlueprint(
     }
 
     let command = ffmpeg();
-    let filterGraph: string[] = [];
+    const filterGraph: string[] = [];
 
-    // Add inputs and trim filters based on timeline
+    // Add inputs and trim filters based on timeline. Each clip is first
+    // normalised onto the common canvas/SAR/framerate so every [v${i}]
+    // stream `concat` consumes is identical in every dimension it checks.
     blueprint.timeline.forEach((clip, i) => {
       command = command.input(clip.file);
       const start = clip.start || 0;
-      filterGraph.push(`[${i}:v]trim=start=${start}:duration=${clip.duration},setpts=PTS-STARTPTS[v${i}];`);
+      const normalizeFilter =
+        `scale=${width}:${height}:force_original_aspect_ratio=decrease,` +
+        `pad=${width}:${height}:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=${fps}`;
+      filterGraph.push(
+        `[${i}:v]${normalizeFilter},trim=start=${start}:duration=${clip.duration},setpts=PTS-STARTPTS[v${i}];`
+      );
     });
 
     const concatInputs = blueprint.timeline.map((_, i) => `[v${i}]`).join('');
@@ -417,7 +444,7 @@ export async function stitchBlueprint(
       .complexFilter(filterGraph.join(''))
       .map(videoOutTag)
       .map(audioOutTag)
-      .outputOptions(['-c:v libx264', '-c:a aac', '-pix_fmt yuv420p'])
+      .outputOptions(['-c:v libx264', '-c:a aac', '-pix_fmt yuv420p', `-r ${fps}`])
       .output(targetOutput)
       .on('stderr', (line: string) => {
         stderrLines.push(line);

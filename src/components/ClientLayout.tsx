@@ -180,9 +180,12 @@ export default function ClientLayout() {
     setGeneratedVideoUrl(null);
 
     try {
+      const selectedFolder = assetFolders.find(f => f.id === selectedFolderId);
+
       const result = await generateContentAction({
         dna: dnaData,
         visualGuide: visualGuide,
+        assetFolder: selectedFolder
       });
 
       if (result.warnings && result.warnings.length > 0) {

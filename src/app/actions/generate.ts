@@ -263,7 +263,8 @@ export async function generateContentAction(
           let filename = task.filename || `clip_${i}.mp4`;
           if (!filename.includes('.')) filename += '.mp4';
 
-          fs.writeFileSync(path.join(bRollDir, filename), Buffer.from(arrayBuffer));
+          const safeName = path.basename(filename);
+          fs.writeFileSync(path.join(bRollDir, safeName), Buffer.from(arrayBuffer));
         } catch (e) {
           console.error('Failed to download asset:', task.url, e);
         }

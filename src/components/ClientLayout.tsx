@@ -8,11 +8,12 @@ import ContentPage from './ContentPage';
 import VisualGuidePage from './VisualGuidePage';
 import AssetsPage from './AssetsPage';
 import SidecarChatbot from './SidecarChatbot';
-import ToastContainer, { showSuccess, showError, showInfo } from './Toast';
+import ToastContainer, { showSuccess, showError, showInfo, showWarning } from './Toast';
 import { createClient } from '@/lib/supabase/client';
 import { useRouter } from 'next/navigation';
 import { Beaker, Folder, PanelLeftClose, PanelLeftOpen, User, LayoutDashboard, LayoutTemplate, FileVideo, RefreshCw } from 'lucide-react';
 import { syncAll } from '@/app/actions/sync';
+import { generateContentAction } from '@/app/actions/generate';
 
 export type AssetFolder = {
   id: string;
@@ -174,220 +175,43 @@ export default function ClientLayout() {
 
     const handleConfirmGenerate = async () => {
     setIsGenerateModalOpen(false);
-    setActivePage('content'); // <--- Redirect ke Content Page
-    setGenerateProgress({ progress: 5, message: "Menyiapkan sistem..." }); // Initial state
+    setActivePage('content');
+    setGenerateProgress({ progress: 10, message: "Menjalankan AI Video Generator Pipeline (ComfyUI)..." });
     setGeneratedVideoUrl(null);
 
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const userId = session?.user?.id || 'anonymous_user';
+      const selectedFolder = assetFolders.find(f => f.id === selectedFolderId);
 
-      const uploadedGlobalUrls: string[] = [];
-      const uploadedFolderUrls: string[] = [];
-      
-      const uploadFiles = async (files: File[], targetArray: string[], folderPath: string) => {
-        for (const file of files) {
-          const fileExt = file.name.split('.').pop();
-          const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
-          const filePath = `${userId}/${folderPath}/${fileName}`;
-
-          const { data, error } = await supabase.storage.from('assets').upload(filePath, file);
-
-          if (error) {
-            console.error("Error uploading file:", error);
-            if (error.message.includes('bucket not found')) {
-              showInfo("PERINGATAN: Bucket 'assets' belum dibuat di Supabase Dashboard.");
+      const result = await generateContentAction({
+        dna: dnaData,
+        visualGuide: visualGuide,
+        assetFolder: selectedFolder
+          ? {
+              id: selectedFolder.id,
+              name: selectedFolder.name,
+              remoteUrls: selectedFolder.remoteUrls,
             }
-          } else if (data) {
-            const { data: publicUrlData } = supabase.storage.from('assets').getPublicUrl(filePath);
-            targetArray.push(publicUrlData.publicUrl);
-          }
-        }
-      };
+          : undefined,
+      });
 
-      if (globalAssets.length > 0 || selectedFolderId) {
-        setGenerateProgress({ progress: 10, message: "Mengunggah aset ke Supabase Storage..." });
-        await uploadFiles(globalAssets, uploadedGlobalUrls, 'global');
-        
-        if (selectedFolderId) {
-          const folder = assetFolders.find(f => f.id === selectedFolderId);
-          if (folder && folder.files.length > 0) {
-            await uploadFiles(folder.files, uploadedFolderUrls, `folder_${folder.id}`);
-          }
-        }
+      if (result.warnings && result.warnings.length > 0) {
+        result.warnings.forEach((warning) => {
+          showWarning(warning);
+        });
       }
 
-      const allAssetUrls = [...uploadedGlobalUrls, ...uploadedFolderUrls];
-      const hasFootage = allAssetUrls.length > 0;
-      let url: string = '';
-
-      if (!hasFootage) {
-        // === FLOW A: NO FOOTAGE AVAILABLE ===
-        // 1. Director Phase 1 (Prompt Gen based on DNA & Visual Guide)
-        setGenerateProgress({ progress: 15, message: "Fase 1/4: Membuat ide visual & prompt Dreamina..." });
-        const promptRes = await fetch('/api/generate/director', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: 'prompt_only', dna: dnaData, visualGuide })
-        }).then(r => r.json());
-
-        if (!promptRes.success) throw new Error(promptRes.error || "Gagal merancang prompt visual.");
-
-        // 2. Video Gen via Dreamina
-        setGenerateProgress({ progress: 35, message: "Fase 2/4: Generasi video AI via Dreamina..." });
-        const videoRes = await fetch('/api/generate/video-gen', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ prompt1: promptRes.prompt1, prompt2: promptRes.prompt2 })
-        }).then(r => r.json());
-
-        if (!videoRes.success) throw new Error(videoRes.error || "Gagal membuat video Dreamina.");
-
-        const videoDuration = videoRes.duration || 5.0;
-
-        // 3. Director Phase 2 (Scripting tailored to exact videoDuration)
-        setGenerateProgress({ progress: 55, message: `Fase 3/4: Penulisan naskah narasi (pas ${videoDuration.toFixed(1)}s)...` });
-        const scriptRes = await fetch('/api/generate/director', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: 'script_only', dna: dnaData, visualGuide, targetDuration: videoDuration })
-        }).then(r => r.json());
-
-        if (!scriptRes.success) throw new Error(scriptRes.error || "Gagal membuat naskah narasi.");
-
-        // 4. TTS & BGM
-        setGenerateProgress({ progress: 75, message: "Fase 4/4: Membuat audio TTS & musik BGM..." });
-        const [ttsRes, bgmRes] = await Promise.all([
-          fetch('/api/generate/tts', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ text: scriptRes.narration, voice: "id-ID-AndikaNeural" })
-          }).then(r => r.json()),
-          fetch('/api/generate/bgm', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ prompt: scriptRes.bgmPrompt })
-          }).then(r => r.json())
-        ]);
-
-        if (!ttsRes.success) throw new Error(ttsRes.error || "Gagal membuat suara TTS.");
-        if (!bgmRes.success) throw new Error(bgmRes.error || "Gagal membuat musik BGM.");
-
-        // Construct scenes array for single generated video
-        const scenes = [{
-          type: 'generated',
-          sourceUrl: videoRes.videoUrl || videoRes.savedPath,
-          startTime: 0,
-          endTime: videoDuration,
-          textOverlay: { text: visualGuide.hook || dnaData.brandName, position: 'center', style: 'hook' }
-        }];
-
-        // 5. Stitching
-        setGenerateProgress({ progress: 90, message: "Menjahit video & audio akhir (FFmpeg)..." });
-        const stitchRes = await fetch('/api/generate/stitch', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            ttsBase64: ttsRes.audioBase64,
-            bgmBase64: bgmRes.audioBase64,
-            srtContent: ttsRes.srtContent,
-            scenes,
-            generatedVideoUrl: videoRes.savedPath || videoRes.videoUrl
-          })
-        }).then(r => r.json());
-
-        if (!stitchRes.success) throw new Error(stitchRes.error || "Gagal menjahit video.");
-        url = stitchRes.videoUrl;
-
-      } else {
-        // === FLOW B: FOOTAGE AVAILABLE ===
-        // 1. Director Phase 1 (Scripting)
-        setGenerateProgress({ progress: 15, message: "Fase 1/5: Menulis naskah narasi utama..." });
-        const scriptRes = await fetch('/api/generate/director', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: 'script_only', dna: dnaData, visualGuide })
-        }).then(r => r.json());
-
-        if (!scriptRes.success) throw new Error(scriptRes.error || "Gagal membuat naskah.");
-
-        // 2. TTS Gen & Extract Duration
-        setGenerateProgress({ progress: 35, message: "Fase 2/5: Generasi suara TTS & ukur durasi pasti..." });
-        const ttsRes = await fetch('/api/generate/tts', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ text: scriptRes.narration, voice: "id-ID-AndikaNeural" })
-        }).then(r => r.json());
-
-        if (!ttsRes.success) throw new Error(ttsRes.error || "Gagal membuat TTS.");
-
-        const ttsDuration = ttsRes.duration || 10.0;
-
-        // 3. Director Phase 2 (Multimodal Scene Planning to match ttsDuration)
-        setGenerateProgress({ progress: 55, message: `Fase 3/5: Menyusun & memotong adegan video (target ${ttsDuration.toFixed(1)}s)...` });
-        const sceneRes = await fetch('/api/generate/director', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            action: 'scene_planning',
-            dna: dnaData,
-            visualGuide,
-            assetUrls: allAssetUrls,
-            targetDuration: ttsDuration
-          })
-        }).then(r => r.json());
-
-        if (!sceneRes.success) throw new Error(sceneRes.error || "Gagal merancang potongan adegan.");
-
-        // Check if any filler video is needed
-        const needsFiller = sceneRes.scenes?.some((s: any) => s.type === 'generated');
-        let videoRes = null;
-        if (needsFiller) {
-          setGenerateProgress({ progress: 65, message: "Fase 4/5 (Opsional): Membuat video filler AI..." });
-          videoRes = await fetch('/api/generate/video-gen', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ prompt: visualGuide.hook || "Product showcase video" })
-          }).then(r => r.json());
-          if (!videoRes.success) throw new Error(videoRes.error || "Gagal membuat video filler.");
-        }
-
-        // 4. BGM Gen
-        setGenerateProgress({ progress: 75, message: "Membuat musik BGM..." });
-        const bgmRes = await fetch('/api/generate/bgm', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ prompt: scriptRes.bgmPrompt })
-        }).then(r => r.json());
-
-        if (!bgmRes.success) throw new Error(bgmRes.error || "Gagal membuat BGM.");
-
-        // 5. Stitching
-        setGenerateProgress({ progress: 90, message: "Menjahit potongan video aset & audio (FFmpeg)..." });
-        const stitchRes = await fetch('/api/generate/stitch', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            ttsBase64: ttsRes.audioBase64,
-            bgmBase64: bgmRes.audioBase64,
-            srtContent: ttsRes.srtContent,
-            scenes: sceneRes.scenes,
-            generatedVideoUrl: videoRes?.savedPath || videoRes?.videoUrl || null
-          })
-        }).then(r => r.json());
-
-        if (!stitchRes.success) throw new Error(stitchRes.error || "Gagal menjahit video.");
-        url = stitchRes.videoUrl;
+      if (!result.success) {
+        throw new Error(result.message || "Gagal membuat video.");
       }
 
-      setGeneratedVideoUrl(url);
+      if (result.videoUrl) {
+        setGeneratedVideoUrl(result.videoUrl);
+      }
       setGenerateProgress(null);
-      showSuccess("Video berhasil dibuat!");
-
+      showSuccess(result.message || "Video berhasil dibuat!");
     } catch (err: any) {
       console.error(err);
       showError(err.message || "Terjadi kesalahan sistem saat memproses video.");
-      // Tampilkan error di dalam card progress!
       setGenerateProgress({ progress: 100, message: err.message || "Terjadi kesalahan", isError: true } as any);
     }
   };

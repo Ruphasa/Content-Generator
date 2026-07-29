@@ -27,7 +27,7 @@ const scriptOnlySchema = {
     narration: { type: Type.STRING, description: "Spoken narration script in Bahasa Indonesia." },
     caption: { type: Type.STRING, description: "Social media caption text." },
     hashtags: { type: Type.STRING, description: "Space separated hashtags." },
-    bgmPrompt: { type: Type.STRING, description: "English prompt for background music (Lyria/Suno)." }
+    bgmPrompt: { type: Type.STRING, description: "English style tags for background music (ACE-Step), e.g. 'cinematic, uplifting, piano'." }
   },
   required: ["narration", "caption", "hashtags", "bgmPrompt"]
 };
@@ -88,7 +88,7 @@ export async function POST(req: Request) {
     // 1. MODE: prompt_only (Flow A Phase 1)
     if (action === 'prompt_only') {
       const systemInstruction = `
-Kamu adalah AI Video Director. Buatlah prompt deskripsi visual (dalam Bahasa Inggris) untuk AI Video Generator (Dreamina T2V) dengan rasio 9:16 vertical short.
+Kamu adalah AI Video Director. Buatlah prompt deskripsi visual (dalam Bahasa Inggris) untuk generator gambar Cloudflare Workers AI, yang hasilnya dianimasikan oleh Stable Video Diffusion di ComfyUI lokal. Rasio 9:16 vertical short.
 
 Konteks Brand DNA:
 - Nama Brand: ${dna.brandName}

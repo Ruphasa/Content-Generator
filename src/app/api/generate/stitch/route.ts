@@ -9,11 +9,7 @@ export const runtime = 'nodejs';
 export const maxDuration = 300; // 5 minutes to allow for multi-video downloading and FFmpeg processing
 
 if (ffmpegStatic) {
-  let ffmpegPath = ffmpegStatic;
-  // Fix Next.js Turbopack path rewriting issue
-  if (ffmpegPath.includes('\\ROOT\\')) {
-    ffmpegPath = ffmpegPath.replace('\\ROOT\\', process.cwd() + '\\');
-  }
+  const ffmpegPath = ffmpegStatic;
   
   if (fs.existsSync(ffmpegPath)) {
     ffmpeg.setFfmpegPath(ffmpegPath);

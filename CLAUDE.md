@@ -12,13 +12,22 @@ Venturo Pro AI Content Generator is a Next.js (App Router) application with a fl
 - **AI:** Vercel AI SDK + Groq
 - **Backend:** Supabase (Auth, Storage, Database)
 - **Spreadsheet Integration:** Google Sheets API
-- **AI Content Pipeline (100% Free & Zero VRAM):**
+- **AI Content Pipeline (local ComfyUI + Cloudflare, no 3rd-party video APIs):**
   - **AI Director:** Gemini 2.5 Flash (via `@google/genai`)
-  - **BGM Generation:** Suno AI via Local Browser Automation (Playwright driving suno.com/create to bypass WAF)
-  - **Narration TTS:** Edge TTS (`edge-tts-universal`, `id-ID-AndikaNeural`)
-  - **T2I Generation:** Cloudflare Workers AI (Fast & Free Image generation for initial frames)
-  - **Video Generation:** Dreamina Seedance 2.0 via Local Browser Automation (Puppeteer driving the Canvas UI to bypass WAF, avoiding 3rd party APIs).
-  - **Video Stitching:** FFmpeg WASM (Browser-side stitching, zero server cost)
+  - **T2I Generation:** Cloudflare Workers AI (`src/lib/cloudflare/image.ts`) — produces the opening still frame. Deliberately NOT moved to ComfyUI.
+  - **Video Generation:** Stable Video Diffusion (image-to-video) on a local ComfyUI instance
+  - **BGM Generation:** ACE-Step on the same local ComfyUI instance
+  - **Narration TTS:** VoxCPM2 on the same local ComfyUI instance (custom node pack)
+  - **Subtitles:** Whisper on the same local ComfyUI instance, emitting an `.srt` (custom node pack)
+  - **Post-processing:** Server-side FFmpeg via `fluent-ffmpeg` (`src/lib/ffmpeg/dynamic_editor.ts`) — Ken Burns, sidechain audio ducking, burned-in styled subtitles. Not plain concatenation.
+
+  **VRAM (8GB target):** ComfyUI graphs are queued and awaited **one at a time**, never
+  in parallel, so a single checkpoint is resident at a time and ComfyUI can swap models
+  RAM → VRAM in turn. Firing them concurrently will OOM the card.
+
+  **Browser automation is gone.** The Suno (Playwright) and Dreamina (Puppeteer)
+  scrapers and their API routes were deleted; do not reintroduce them. Edge TTS and
+  FFmpeg WASM are likewise no longer the pipeline's TTS/stitching path.
 
 ## Key Features
 1. **Flexible Sidecar UX** - Non-linear DNA form + AI Chatbot
@@ -27,7 +36,7 @@ Venturo Pro AI Content Generator is a Next.js (App Router) application with a fl
 4. **Proactive AI Copilot** - Contextual suggestions on field focus
 5. **Spreadsheet Sync** - One-click data sync from Google Sheets
 6. **Custom Toast System** - Glassmorphism notifications (no native alerts)
-7. **Free Unlimited AI Video Generation Pipeline** - 100% Serverless, Vercel-ready, utilizing FFmpeg WASM and Gemini API free tier.
+7. **Local AI Video Generation Pipeline** - One server action drives Cloudflare T2I, four sequential ComfyUI workflows, and a server-side FFmpeg edit. Runs against a local GPU; not serverless.
 
 ## Architecture
 
@@ -59,6 +68,14 @@ src/
 │   ├── Toast.tsx                  # Notification system
 │   └── ...
 ├── lib/
+│   ├── cloudflare/
+│   │   └── image.ts               # Cloudflare Workers AI T2I (opening frame)
+│   ├── comfyui/
+│   │   ├── client.ts              # ComfyUI HTTP client: queue, poll /history, /view, /upload
+│   │   └── workflows.ts           # API-format graph builders (SVD, ACE-Step, VoxCPM2, Whisper)
+│   ├── ffmpeg/
+│   │   ├── dynamic_editor.ts      # Ken Burns + audio ducking + burned-in subtitles
+│   │   └── stitcher.ts            # Legacy multi-scene concatenation helper
 │   ├── google/
 │   │   ├── sheets.ts              # Google Sheets API client
 │   │   └── drive.ts               # Google Drive download helper
@@ -67,16 +84,17 @@ src/
 │       └── server.ts              # Server Supabase client
 ├── app/
 │   ├── actions/
-│   │   └── sync.ts                # Spreadsheet sync actions
+│   │   ├── sync.ts                # Spreadsheet sync actions
+│   │   └── generate.ts            # Video pipeline orchestrator (Cloudflare -> ComfyUI -> FFmpeg)
 │   ├── api/
 │   │   ├── chat/
 │   │   │   └── route.ts           # AI chat endpoint
 │   │   └── generate/
 │   │       ├── route.ts           # Orchestrator API (SSE)
 │   │       ├── director/          # Gemini 2.5 Flash Editing Plan
-│   │       ├── tts/               # Edge TTS (Andika/Gadis)
-│   │       ├── bgm/               # Lyria 3 Clip (BGM Generator)
-│   │       └── video-gen/         # Gemini Omni Flash (T2V Fallback)
+│   │       ├── tts/               # Legacy Edge TTS route (superseded by ComfyUI VoxCPM2)
+│   │       ├── bgm/               # Legacy BGM route, currently a mock (superseded by ComfyUI ACE-Step)
+│   │       └── stitch/            # Server-side FFmpeg multi-scene stitching
 │   └── ...
 └── pages/
     ├── login/page.tsx
@@ -141,7 +159,7 @@ showWarning("Peringatan: Bucket belum dibuat");
 - **Column 1:** Folder name (Folder)
 - **Column 2:** Google Drive URL
 - **Column 3:** Keterangan (Filename)
-- *Note:* Files are NOT downloaded directly via Next.js to bypass Vercel limits. We store the Google Drive URLs in state, and FFmpeg WASM will download them directly in the browser during the stitching process.
+- *Note:* Files are NOT downloaded during sync. Only the Google Drive URLs are stored in state; they are fetched later, server-side, by whichever FFmpeg stage needs the bytes.
 
 ## Styling Guidelines
 - **Colors:** Venturo Teal (`#009BAD`), Venturo Dark (`#006D79`)

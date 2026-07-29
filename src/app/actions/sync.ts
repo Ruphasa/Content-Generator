@@ -136,13 +136,15 @@ async function syncAssets(spreadsheetId: string): Promise<{ success: boolean; me
     for (let i = startIndex; i < sheetData.length; i++) {
       const row = sheetData[i];
       
-      if (row.length < 2) continue;
-
       const folderName = String(row[0]).trim() || `Folder Unnamed`;
-      const url = String(row[1]).trim();
-      const keterangan = row.length > 2 ? String(row[2]).trim() : undefined;
-
+      const keterangan = row[2] ? String(row[2]).trim() : (row[1] ? String(row[1]).trim() : undefined);
+      
+      // Explicitly read Column D (row[3]) for Link Download
+      let url = row[3] ? String(row[3]).trim() : '';
       if (!url) continue;
+      if (!/^https?:\/\//i.test(url)) {
+        url = `https://${url}`;
+      }
 
       if (!folderMap.has(folderName)) {
         folderMap.set(folderName, []);

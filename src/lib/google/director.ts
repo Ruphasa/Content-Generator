@@ -9,6 +9,7 @@ export interface DirectorBlueprint {
 }
 
 export async function createEditingBlueprint(context: string, assets: AssetMetadata[]): Promise<DirectorBlueprint> {
+  console.log('[AI Director] Meracik blueprint editing B-Roll & narasi via Gemini 2.5 Flash...');
   const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || process.env.GOOGLE_GENAI_API_KEY });
   const assetInfo = assets.map(a => `${path.basename(a.file)} (Duration: ${a.duration}s)`).join('\n');
   

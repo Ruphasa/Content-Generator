@@ -370,12 +370,13 @@ export async function renderDynamicVideo(params: RenderParams): Promise<string> 
 export async function stitchBlueprint(
   blueprint: DirectorBlueprint,
   voicePath: string,
-  bgmPath: string,
-  assPath: string,
-  outputPath: string
+  bgmPath?: string,
+  assPath?: string,
+  outputPath?: string
 ): Promise<string> {
+  const targetOutput = outputPath || path.join(process.cwd(), 'public', 'generations', 'final', `output_${Date.now()}.mp4`);
   return new Promise((resolve, reject) => {
-    const outputDir = path.dirname(path.resolve(outputPath));
+    const outputDir = path.dirname(path.resolve(targetOutput));
     if (!fs.existsSync(outputDir)) {
       fs.mkdirSync(outputDir, { recursive: true });
     }
@@ -393,23 +394,45 @@ export async function stitchBlueprint(
     const concatInputs = blueprint.timeline.map((_, i) => `[v${i}]`).join('');
     filterGraph.push(`${concatInputs}concat=n=${blueprint.timeline.length}:v=1:a=0[vconcat];`);
 
-    command = command.input(voicePath).input(bgmPath);
+    command = command.input(voicePath);
     const vIdx = blueprint.timeline.length;
-    const bIdx = blueprint.timeline.length + 1;
+    let audioOutTag = `[${vIdx}:a]`;
 
-    // Audio ducking + Ass Subtitles
-    filterGraph.push(`[${vIdx}:a][${bIdx}:a]amix=inputs=2:duration=first:dropout_transition=2[aout];`);
-    const escapedAss = escapeFilterPath(assPath);
-    filterGraph.push(`[vconcat]ass=${escapedAss}[vout]`);
+    if (bgmPath && fs.existsSync(bgmPath)) {
+      command = command.input(bgmPath);
+      const bIdx = blueprint.timeline.length + 1;
+      filterGraph.push(`[${vIdx}:a][${bIdx}:a]amix=inputs=2:duration=first:dropout_transition=2[aout];`);
+      audioOutTag = '[aout]';
+    }
 
+    let videoOutTag = '[vconcat]';
+    if (assPath && fs.existsSync(assPath)) {
+      const escapedAss = escapeFilterPath(assPath);
+      filterGraph.push(`[vconcat]ass=${escapedAss}[vout]`);
+      videoOutTag = '[vout]';
+    }
+
+    const stderrLines: string[] = [];
     command
       .complexFilter(filterGraph.join(''))
-      .map('[vout]')
-      .map('[aout]')
+      .map(videoOutTag)
+      .map(audioOutTag)
       .outputOptions(['-c:v libx264', '-c:a aac', '-pix_fmt yuv420p'])
-      .output(outputPath)
-      .on('end', () => resolve(outputPath))
-      .on('error', reject)
+      .output(targetOutput)
+      .on('stderr', (line: string) => {
+        stderrLines.push(line);
+        if (stderrLines.length > 200) stderrLines.shift();
+      })
+      .on('end', () => resolve(targetOutput))
+      .on('error', (err: Error) => {
+        reject(
+          new Error(
+            `Gagal menjahit video: ${err.message}\n` +
+              `--- filter_complex ---\n${filterGraph.join('')}\n` +
+              `--- ffmpeg stderr ---\n${stderrLines.join('\n')}`
+          )
+        );
+      })
       .run();
   });
 }

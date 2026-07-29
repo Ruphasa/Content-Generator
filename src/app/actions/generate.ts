@@ -265,6 +265,16 @@ export async function generateContentAction(
         let attempted = 0;
         let downloaded = 0;
 
+function toDirectDriveUrl(url: string): string {
+  const match = url.match(/drive\.google\.com\/file\/d\/([^\/]+)/) ||
+                url.match(/drive\.google\.com\/uc\?id=([^\&]+)/) ||
+                url.match(/id=([a-zA-Z0-9_-]{25,})/);
+  if (match && match[1]) {
+    return `https://drive.usercontent.google.com/download?id=${match[1]}&export=download&confirm=t`;
+  }
+  return url;
+}
+
         // Sequential on purpose: keeps this run's resource usage predictable
         // alongside the strictly-serial ComfyUI queueing later in this action.
         for (let i = 0; i < remoteUrls.length; i++) {
@@ -272,34 +282,15 @@ export async function generateContentAction(
           if (!task.url.trim() || !/^https?:\/\//i.test(task.url.trim())) continue;
           attempted++;
 
+          const targetUrl = toDirectDriveUrl(task.url);
           let destination: string | undefined;
           try {
-            const response = await fetch(task.url, {
+            const response = await fetch(targetUrl, {
               signal: AbortSignal.timeout(ASSET_FETCH_TIMEOUT_MS),
+              cache: 'no-store',
             });
             if (!response.ok) {
-              console.error('Failed to download asset:', task.url, `HTTP ${response.status}`);
-              continue;
-            }
-
-            const contentType = response.headers.get('content-type') ?? '';
-            if (!/^(video\/|application\/octet-stream)/i.test(contentType)) {
-              warnings.push(
-                `Aset "${task.filename || task.url}" dilewati: server mengembalikan ${contentType || 'tipe tidak dikenal'}. Pastikan URL Google Drive adalah tautan unduhan langsung.`,
-              );
-              continue;
-            }
-
-            const contentLength = Number(response.headers.get('content-length'));
-            if (Number.isFinite(contentLength) && contentLength > MAX_ASSET_BYTES) {
-              warnings.push(
-                `Aset "${task.filename || task.url}" dilewati: ukuran ${(contentLength / (1024 * 1024)).toFixed(0)}MB melebihi batas ${(MAX_ASSET_BYTES / (1024 * 1024)).toFixed(0)}MB.`,
-              );
-              continue;
-            }
-
-            if (!response.body) {
-              console.error('Failed to download asset:', task.url, 'respons tidak memiliki body');
+              console.error('Failed to download asset:', targetUrl, `HTTP ${response.status}`);
               continue;
             }
 
@@ -313,9 +304,27 @@ export async function generateContentAction(
               Readable.fromWeb(response.body as any),
               fs.createWriteStream(destination),
             );
+
+            // Validate that downloaded file is a real binary video, not an HTML error/login page
+            const stat = fs.statSync(destination);
+            if (stat.size < 10000) {
+              const headBuffer = Buffer.alloc(500);
+              const fd = fs.openSync(destination, 'r');
+              fs.readSync(fd, headBuffer, 0, 500, 0);
+              fs.closeSync(fd);
+              const headText = headBuffer.toString('utf8');
+              if (headText.includes('<html') || headText.includes('<!DOCTYPE') || headText.includes('Google Drive')) {
+                console.error(`[AssetDownload] File "${filename}" is HTML page instead of MP4. Removing.`);
+                fs.rmSync(destination, { force: true });
+                warnings.push(`Aset "${filename}" dilewati: Tautan Google Drive tidak publik / membutuhkan konfirmasi hak akses.`);
+                continue;
+              }
+            }
+
             downloaded++;
+            console.log(`[AssetDownload] Berhasil mendownload B-Roll [${downloaded}/${remoteUrls.length}]: ${safeName} (${(stat.size / 1024 / 1024).toFixed(1)} MB)`);
           } catch (e) {
-            console.error('Failed to download asset:', task.url, e);
+            console.error('Failed to download asset:', targetUrl, e);
             if (destination) fs.rmSync(destination, { force: true });
           }
         }
@@ -347,6 +356,7 @@ export async function generateContentAction(
     let svdBgmTags = '';
 
     if (useBRollPath) {
+      console.log(`[Pipeline] Skenario 2 Aktif: Menggunakan ${assets.length} file B-Roll yang ter-download.`);
       // ── Stage B-Roll 1: Blueprint
       const contextStr = JSON.stringify({ dna: input.dna, guide: input.visualGuide });
       blueprint = await createEditingBlueprint(contextStr, assets);
@@ -357,8 +367,10 @@ export async function generateContentAction(
         duration += clip.duration;
       });
       narrationText = blueprint.tts_script;
+      console.log(`[Pipeline] Naskah Voiceover B-Roll AI Director (${duration.toFixed(1)}s):\n"${narrationText}"`);
       
     } else {
+      console.log('[Pipeline] Skenario 1 Aktif: Mode Single Image (Cloudflare T2I + ComfyUI SVD).');
       // ── Stage SVD 1: Narration script setup and Cloudflare T2I
       const directorPlan = await generateDirectorPlan({ dna: input.dna, visualGuide: input.visualGuide });
 
@@ -389,6 +401,7 @@ export async function generateContentAction(
       );
 
       const framePath = path.join(workDir, 'frame.png');
+      console.log(`[Pipeline] Meng-generate gambar T2I via Cloudflare AI (Prompt: "${finalImagePrompt}")...`);
       const imageOk = await generateImageFromCloudflare(finalImagePrompt, framePath);
       if (!imageOk || !fs.existsSync(framePath)) {
         return {
@@ -407,6 +420,7 @@ export async function generateContentAction(
     }
 
     // ── Stage 2: Narration (VoxCPM2)
+    console.log('[Pipeline] Tahap 2: Meng-generate Voiceover Indonesia via VoxCPM2 di ComfyUI...');
     const narrationEntry = await comfy.runWorkflow(
       buildNarrationWorkflow({
         text: narrationText,
@@ -417,6 +431,7 @@ export async function generateContentAction(
     const voicePath = await downloadTo(comfy, narrationFile, workDir, 'narration');
 
     // ── Stage 3: Subtitles (Whisper & ASS generation)
+    console.log('[Pipeline] Tahap 3: Transkripsi subtitle otomatis via Whisper di ComfyUI...');
     let srtPath: string | undefined;
     const assPath = path.join(workDir, 'subtitles.ass');
     const srtName = `venturo_subtitles_${timestamp}`;
@@ -457,7 +472,9 @@ export async function generateContentAction(
     }
 
     // ── Stage 4: Background music (ACE-Step)
+    let bgmPath: string | undefined;
     const bgmPromptStr = useBRollPath && blueprint ? blueprint.bgm_prompt : (svdBgmTags || input.bgmTags?.trim() || composeBgmTags(input));
+    console.log(`[Pipeline] Tahap 4: Meng-generate musik latar BGM via ACE-Step di ComfyUI (Prompt: "${bgmPromptStr}")...`);
     const musicEntry = await comfy.runWorkflow(
       buildMusicWorkflow({
         tags: bgmPromptStr,
@@ -465,9 +482,10 @@ export async function generateContentAction(
       }),
     );
     const musicFile = requireOutputFile(comfy, musicEntry, MUSIC_OUTPUT_NODE, 'BGM');
-    const bgmPath = await downloadTo(comfy, musicFile, workDir, 'bgm');
+    bgmPath = await downloadTo(comfy, musicFile, workDir, 'bgm');
 
     // ── Stage 5: Render
+    console.log('[Pipeline] Tahap 5: Merender video akhir & audio mixing via FFmpeg...');
     const finalDir = path.join(process.cwd(), 'public', 'generations', 'final');
     if (!fs.existsSync(finalDir)) {
       fs.mkdirSync(finalDir, { recursive: true });

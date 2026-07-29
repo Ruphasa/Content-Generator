@@ -36,9 +36,9 @@ import type { ComfyWorkflow } from './client';
 // ─── Defaults (override with the matching env var) ────────────────────────────
 
 /** Stable Video Diffusion checkpoint, relative to ComfyUI/models/checkpoints. */
-export const DEFAULT_SVD_CHECKPOINT = 'svd.safetensors';
+export const DEFAULT_SVD_CHECKPOINT = 'svd_xt.safetensors';
 /** ACE-Step checkpoint, relative to ComfyUI/models/checkpoints. */
-export const DEFAULT_ACE_STEP_CHECKPOINT = 'ace_step_v1_3.5b.safetensors';
+export const DEFAULT_ACE_STEP_CHECKPOINT = 'acestep-v15-turbo.safetensors';
 /** VoxCPM model folder name under ComfyUI/models/tts/VoxCPM. */
 export const DEFAULT_VOXCPM_MODEL = 'VoxCPM2';
 /** Whisper model size accepted by ComfyUI-Whisper's combo widget. */
@@ -206,13 +206,21 @@ export function buildMusicWorkflow(options: MusicOptions): ComfyWorkflow {
   } = options;
 
   return {
-    '1': {
-      class_type: 'CheckpointLoaderSimple',
-      inputs: { ckpt_name: env('COMFYUI_ACE_STEP_CHECKPOINT', DEFAULT_ACE_STEP_CHECKPOINT) },
+    '1a': {
+      class_type: 'UNETLoader',
+      inputs: { unet_name: 'ace_step_transformer.safetensors', weight_dtype: 'default' },
+    },
+    '1b': {
+      class_type: 'CLIPLoader',
+      inputs: { clip_name: 'umt5_base_ace.safetensors', type: 'ace' },
+    },
+    '1c': {
+      class_type: 'VAELoader',
+      inputs: { vae_name: 'music_dcae_vocoder_combined.safetensors' },
     },
     '2': {
       class_type: 'TextEncodeAceStepAudio',
-      inputs: { clip: ['1', 1], tags, lyrics, lyrics_strength: lyricsStrength },
+      inputs: { clip: ['1b', 0], tags, lyrics, lyrics_strength: lyricsStrength },
     },
     '3': {
       class_type: 'ConditioningZeroOut',
@@ -224,7 +232,7 @@ export function buildMusicWorkflow(options: MusicOptions): ComfyWorkflow {
     },
     '5': {
       class_type: 'ModelSamplingSD3',
-      inputs: { model: ['1', 0], shift },
+      inputs: { model: ['1a', 0], shift },
     },
     '6': {
       class_type: 'KSampler',
@@ -243,7 +251,7 @@ export function buildMusicWorkflow(options: MusicOptions): ComfyWorkflow {
     },
     '7': {
       class_type: 'VAEDecodeAudio',
-      inputs: { samples: ['6', 0], vae: ['1', 2] },
+      inputs: { samples: ['6', 0], vae: ['1c', 0] },
     },
     // SaveAudioMP3 is flagged deprecated on ComfyUI master but is still registered
     // and is what the official ACE-Step template uses; it is the option that works

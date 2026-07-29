@@ -3,6 +3,8 @@
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
+import { Readable } from 'node:stream';
+import { pipeline } from 'node:stream/promises';
 
 import type { DNAData, VisualGuideData } from '@/components/ClientLayout';
 import { generateImageFromCloudflare } from '@/lib/cloudflare/image';
@@ -61,6 +63,8 @@ const SVD_FPS = 6;
 const SVD_WIDTH = 576;
 const SVD_HEIGHT = 1024;
 const WORDS_PER_SECOND = 2.5;
+const MAX_ASSET_BYTES = 500 * 1024 * 1024; // 500MB per remote B-Roll clip
+const ASSET_FETCH_TIMEOUT_MS = 120_000;
 
 function videoDurationSeconds(): number {
   return SVD_VIDEO_FRAMES / SVD_FPS;
@@ -247,26 +251,76 @@ export async function generateContentAction(
     let assets: any[] = [];
 
     // If user selected a folder with remote URLs, download them to a temp folder
-    if (input.assetFolder?.remoteUrls && input.assetFolder.remoteUrls.length > 0) {
-      bRollDir = path.join(workDir, 'b-roll');
-      fs.mkdirSync(bRollDir, { recursive: true });
+    const remoteUrls = input.assetFolder?.remoteUrls ?? [];
+    if (input.assetFolder) {
+      if (remoteUrls.length === 0) {
+        warnings.push(
+          `Folder "${input.assetFolder.name}" tidak memiliki aset tersinkronisasi. Sinkronkan dari Spreadsheet terlebih dahulu.`,
+        );
+      } else {
+        bRollDir = path.join(workDir, 'b-roll');
+        fs.mkdirSync(bRollDir, { recursive: true });
 
-      for (let i = 0; i < input.assetFolder.remoteUrls.length; i++) {
-        const task = input.assetFolder.remoteUrls[i];
-        if (!task.url.trim()) continue;
+        let attempted = 0;
+        let downloaded = 0;
 
-        try {
-          const response = await fetch(task.url);
-          if (!response.ok) continue;
+        // Sequential on purpose: keeps this run's resource usage predictable
+        // alongside the strictly-serial ComfyUI queueing later in this action.
+        for (let i = 0; i < remoteUrls.length; i++) {
+          const task = remoteUrls[i];
+          if (!task.url.trim()) continue;
+          attempted++;
 
-          const arrayBuffer = await response.arrayBuffer();
-          let filename = task.filename || `clip_${i}.mp4`;
-          if (!filename.includes('.')) filename += '.mp4';
+          try {
+            const response = await fetch(task.url, {
+              signal: AbortSignal.timeout(ASSET_FETCH_TIMEOUT_MS),
+            });
+            if (!response.ok) {
+              console.error('Failed to download asset:', task.url, `HTTP ${response.status}`);
+              continue;
+            }
 
-          const safeName = path.basename(filename);
-          fs.writeFileSync(path.join(bRollDir, safeName), Buffer.from(arrayBuffer));
-        } catch (e) {
-          console.error('Failed to download asset:', task.url, e);
+            const contentType = response.headers.get('content-type') ?? '';
+            if (!/^(video\/|application\/octet-stream)/i.test(contentType)) {
+              warnings.push(
+                `Aset "${task.filename || task.url}" dilewati: server mengembalikan ${contentType || 'tipe tidak dikenal'}. Pastikan URL Google Drive adalah tautan unduhan langsung.`,
+              );
+              continue;
+            }
+
+            const contentLength = Number(response.headers.get('content-length'));
+            if (Number.isFinite(contentLength) && contentLength > MAX_ASSET_BYTES) {
+              warnings.push(
+                `Aset "${task.filename || task.url}" dilewati: ukuran ${(contentLength / (1024 * 1024)).toFixed(0)}MB melebihi batas ${(MAX_ASSET_BYTES / (1024 * 1024)).toFixed(0)}MB.`,
+              );
+              continue;
+            }
+
+            if (!response.body) {
+              console.error('Failed to download asset:', task.url, 'respons tidak memiliki body');
+              continue;
+            }
+
+            let filename = task.filename || `clip_${i}.mp4`;
+            if (!/\.(mp4|mov|m4v|webm|mkv)$/i.test(filename)) filename += '.mp4';
+
+            const safeName = `${i}_${path.basename(filename)}`;
+            const destination = path.join(bRollDir, safeName);
+
+            await pipeline(
+              Readable.fromWeb(response.body as any),
+              fs.createWriteStream(destination),
+            );
+            downloaded++;
+          } catch (e) {
+            console.error('Failed to download asset:', task.url, e);
+          }
+        }
+
+        if (attempted > 0 && downloaded < attempted) {
+          warnings.push(
+            `${attempted - downloaded} dari ${attempted} aset di folder "${input.assetFolder.name}" gagal diunduh dan dilewati.`,
+          );
         }
       }
     }
@@ -274,8 +328,14 @@ export async function generateContentAction(
     if (fs.existsSync(bRollDir)) {
       assets = await scanAssets(bRollDir);
     }
-    
+
     const useBRollPath = assets.length > 0;
+
+    if (input.assetFolder && remoteUrls.length > 0 && assets.length === 0) {
+      warnings.push(
+        `Tidak ada aset valid ditemukan dari folder "${input.assetFolder.name}" setelah diunduh. Pipeline beralih ke mode gambar tunggal (SVD).`,
+      );
+    }
 
     let duration = 0;
     let narrationText = '';

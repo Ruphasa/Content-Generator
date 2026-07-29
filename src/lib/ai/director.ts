@@ -43,8 +43,9 @@ Output WAJIB berupa JSON dengan format:
       prompt: systemInstruction,
     });
 
-    const cleanJson = text.replace(/```json/g, '').replace(/```/g, '').trim();
-    const parsed = JSON.parse(cleanJson);
+    const match = text.match(/\{[\s\S]*\}/);
+    const jsonString = match ? match[0] : text;
+    const parsed = JSON.parse(jsonString);
     return {
       imagePrompt: parsed.imagePrompt || `${visualGuide.visualFocus || 'Modern software development scene'}, brand ${dna.brandName || ''}, 9:16 vertical composition, cinematic lighting`,
       narrationScript: parsed.narrationScript || visualGuide.hook || '',

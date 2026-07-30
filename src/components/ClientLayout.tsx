@@ -11,7 +11,7 @@ import SidecarChatbot from './SidecarChatbot';
 import ToastContainer, { showSuccess, showError, showInfo, showWarning } from './Toast';
 import { createClient } from '@/lib/supabase/client';
 import { useRouter } from 'next/navigation';
-import { Beaker, Folder, PanelLeftClose, PanelLeftOpen, User, LayoutDashboard, LayoutTemplate, FileVideo, RefreshCw, Cpu, Sparkles, Wand2 } from 'lucide-react';
+import { Beaker, Folder, FolderOpen, FileText, PanelLeftClose, PanelLeftOpen, User, LayoutDashboard, LayoutTemplate, FileVideo, RefreshCw, Cpu, Sparkles, Wand2 } from 'lucide-react';
 import { syncAll } from '@/app/actions/sync';
 import { generateContentAction } from '@/app/actions/generate';
 import { generatePremiumAction } from '@/app/actions/generatePremium';
@@ -444,16 +444,27 @@ export default function ClientLayout() {
                   <div 
                     key={f.id}
                     onClick={() => setSelectedFolderId(selectedFolderId === f.id ? '' : f.id)}
-                    className="group flex flex-col items-center justify-center p-6 cursor-pointer transition-transform hover:scale-105"
-                  >
-                    <div className={`w-16 h-16 rounded-full flex items-center justify-center mb-3 transition-colors ${
+                    className={`group/folder flex flex-col items-center justify-center p-4 rounded-2xl border-2 cursor-pointer transition-all duration-300 ${
                       selectedFolderId === f.id 
-                        ? 'bg-[var(--venturo-teal)]/20' 
-                        : 'bg-[var(--venturo-teal)]/10'
-                    }`}>
-                      <Folder className={`w-8 h-8 fill-current transition-opacity ${
-                        selectedFolderId === f.id ? 'opacity-100' : 'opacity-60'
-                      }`} />
+                        ? 'border-[var(--venturo-teal)] bg-[var(--venturo-teal)]/5 shadow-sm scale-105' 
+                        : 'border-gray-100 hover:border-[var(--venturo-teal)]/30 hover:bg-gray-50/50 hover:scale-105'
+                    }`}
+                  >
+                    <div className="relative w-16 h-16 mx-auto mb-2 flex items-center justify-center group/folder">
+                      {/* Lapis Pertama (Kertas): FileText absolut di belakang */}
+                      <FileText 
+                        className={`absolute w-7 h-7 text-[var(--venturo-teal)] transition-all duration-300 ${
+                          selectedFolderId === f.id
+                            ? '-translate-y-4 rotate-[-10deg] opacity-100'
+                            : '-translate-y-2 opacity-60 group-hover/folder:-translate-y-4 group-hover/folder:rotate-[-10deg] group-hover/folder:opacity-100'
+                        }`}
+                      />
+                      {/* Lapis Kedua (Folder Depan): Folder / FolderOpen di depan */}
+                      {selectedFolderId === f.id ? (
+                        <FolderOpen className="relative z-10 w-8 h-8 text-[var(--venturo-teal)] fill-[var(--venturo-teal)]/20 transition-all duration-300" />
+                      ) : (
+                        <Folder className="relative z-10 w-8 h-8 text-gray-500 group-hover/folder:text-[var(--venturo-teal)] transition-all duration-300" />
+                      )}
                     </div>
                     <h4 className={`font-semibold text-center ${
                       selectedFolderId === f.id ? 'text-[var(--venturo-teal)]' : 'text-gray-600'

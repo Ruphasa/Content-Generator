@@ -14,6 +14,7 @@ import { useRouter } from 'next/navigation';
 import { Beaker, Folder, PanelLeftClose, PanelLeftOpen, User, LayoutDashboard, LayoutTemplate, FileVideo, RefreshCw } from 'lucide-react';
 import { syncAll } from '@/app/actions/sync';
 import { generateContentAction } from '@/app/actions/generate';
+import { generatePremiumAction } from '@/app/actions/generatePremium';
 
 export type AssetFolder = {
   id: string;
@@ -90,6 +91,7 @@ export default function ClientLayout() {
   });
 
   const [isGenerateModalOpen, setIsGenerateModalOpen] = useState(false);
+  const [generateMode, setGenerateMode] = useState<'local' | 'api'>('local');
   const [selectedFolderId, setSelectedFolderId] = useState<string>('');
   
   const [generateProgress, setGenerateProgress] = useState<{ progress: number, message: string } | null>(null);
@@ -180,13 +182,18 @@ export default function ClientLayout() {
     const handleConfirmGenerate = async () => {
     setIsGenerateModalOpen(false);
     setActivePage('content');
-    setGenerateProgress({ progress: 10, message: "Menjalankan AI Video Generator Pipeline (ComfyUI)..." });
+    setGenerateProgress({
+      progress: 10,
+      message: generateMode === 'api'
+        ? "Menjalankan AI Video Premium Pipeline (Veo + Cloud TTS)..."
+        : "Menjalankan AI Video Generator Pipeline (ComfyUI)...",
+    });
     setGeneratedVideoUrl(null);
 
     try {
       const selectedFolder = assetFolders.find(f => f.id === selectedFolderId);
 
-      const result = await generateContentAction({
+      const payload = {
         dna: dnaData,
         visualGuide: visualGuide,
         assetFolder: selectedFolder
@@ -196,10 +203,15 @@ export default function ClientLayout() {
               remoteUrls: selectedFolder.remoteUrls,
             }
           : undefined,
-      });
+      };
 
-      if (result.warnings && result.warnings.length > 0) {
-        result.warnings.forEach((warning) => {
+      const result = generateMode === 'api'
+        ? await generatePremiumAction(payload)
+        : await generateContentAction(payload);
+
+      const warnings = 'warnings' in result ? result.warnings : [];
+      if (warnings && warnings.length > 0) {
+        warnings.forEach((warning) => {
           showWarning(warning);
         });
       }
@@ -443,6 +455,24 @@ export default function ClientLayout() {
                     <p className="text-xs text-gray-500 mt-1 text-center">{(f.files?.length || 0) + (f.remoteUrls?.length || 0)} files</p>
                   </div>
                 ))}
+              </div>
+
+              <div className="mt-4">
+                <h4 className="text-sm font-semibold text-gray-900 mb-2">Metode Generate</h4>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setGenerateMode('local')}
+                    className={`flex-1 py-2 rounded-xl text-sm font-medium transition-colors ${generateMode === 'local' ? 'bg-[var(--venturo-teal)] text-white' : 'bg-gray-100 text-gray-600'}`}
+                  >
+                    Local (Gratis)
+                  </button>
+                  <button
+                    onClick={() => setGenerateMode('api')}
+                    className={`flex-1 py-2 rounded-xl text-sm font-medium transition-colors ${generateMode === 'api' ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-600'}`}
+                  >
+                    Premium API (Berbayar)
+                  </button>
+                </div>
               </div>
 
               <div className="flex justify-end gap-3 mt-4">

@@ -491,11 +491,53 @@ export async function generateContentAction(
     const narrationFile = requireOutputFile(comfy, narrationEntry, NARRATION_OUTPUT_NODE, 'narasi');
     const voicePath = await downloadTo(comfy, narrationFile, workDir, 'narration');
 
+    // ── Stage 3: Subtitles (Whisper & ASS generation)
+    console.log('[Pipeline] Tahap 3: Transkripsi subtitle otomatis via Whisper di ComfyUI...');
+    let srtPath: string | undefined;
+    let srtContent = '';
+    const assPath = path.join(workDir, 'subtitles.ass');
+    const srtName = `venturo_subtitles_${timestamp}`;
+    const audioUpload = await comfy.uploadFile(
+      fs.readFileSync(voicePath),
+      `venturo_narration_${timestamp}${path.extname(voicePath)}`,
+    );
+    const audioName = audioUpload.subfolder
+      ? `${audioUpload.subfolder}/${audioUpload.name}`
+      : audioUpload.name;
+
+    try {
+      const transcriptionPromptId = await comfy.queuePrompt(
+        buildTranscriptionWorkflow({ audioName, srtName }),
+      );
+      if (transcriptionPromptId) {
+        const transcriptionEntry = await comfy.waitForPrompt(transcriptionPromptId);
+        const [reportedSrtPath] = comfy.collectOutputText(
+          transcriptionEntry,
+          TRANSCRIPTION_SRT_PATH_NODE,
+        );
+        srtPath = await downloadTo(
+          comfy,
+          resolveSrtRef(reportedSrtPath, srtName),
+          workDir,
+          'subtitles',
+        );
+        srtContent = fs.readFileSync(srtPath, 'utf8');
+        const words = parseSrt(srtContent);
+        generateAssFile(words, assPath);
+      }
+    } catch (error) {
+      warnings.push(`Subtitle dilewati atau gagal: ${describeError(error)}`);
+    }
+
+    if (!fs.existsSync(assPath)) {
+      generateAssFile([], assPath);
+    }
+
     if (useBRollPath) {
       duration = await probeDuration(voicePath);
       console.log(`[Pipeline] Stage B-Roll 2: Meracik timeline video menyesuaikan durasi audio ${duration.toFixed(2)}s...`);
       const targetDuration = Number(duration.toFixed(1));
-      const timelineResult = await generateTimeline(targetDuration, assets);
+      const timelineResult = await generateTimeline(targetDuration, assets, srtContent);
       
       let timelineSum = 0;
       // Fix blueprint timeline paths and sanitize against hallucinations
@@ -547,47 +589,6 @@ export async function generateContentAction(
         bgm_prompt: svdBgmTags,
         timeline: timelineResult.timeline,
       };
-    }
-
-    // ── Stage 3: Subtitles (Whisper & ASS generation)
-    console.log('[Pipeline] Tahap 3: Transkripsi subtitle otomatis via Whisper di ComfyUI...');
-    let srtPath: string | undefined;
-    const assPath = path.join(workDir, 'subtitles.ass');
-    const srtName = `venturo_subtitles_${timestamp}`;
-    const audioUpload = await comfy.uploadFile(
-      fs.readFileSync(voicePath),
-      `venturo_narration_${timestamp}${path.extname(voicePath)}`,
-    );
-    const audioName = audioUpload.subfolder
-      ? `${audioUpload.subfolder}/${audioUpload.name}`
-      : audioUpload.name;
-
-    try {
-      const transcriptionPromptId = await comfy.queuePrompt(
-        buildTranscriptionWorkflow({ audioName, srtName }),
-      );
-      if (transcriptionPromptId) {
-        const transcriptionEntry = await comfy.waitForPrompt(transcriptionPromptId);
-        const [reportedSrtPath] = comfy.collectOutputText(
-          transcriptionEntry,
-          TRANSCRIPTION_SRT_PATH_NODE,
-        );
-        srtPath = await downloadTo(
-          comfy,
-          resolveSrtRef(reportedSrtPath, srtName),
-          workDir,
-          'subtitles',
-        );
-        const srtContent = fs.readFileSync(srtPath, 'utf8');
-        const words = parseSrt(srtContent);
-        generateAssFile(words, assPath);
-      }
-    } catch (error) {
-      warnings.push(`Subtitle dilewati atau gagal: ${describeError(error)}`);
-    }
-
-    if (!fs.existsSync(assPath)) {
-      generateAssFile([], assPath);
     }
 
     // ── Stage 4: Background music (ACE-Step)

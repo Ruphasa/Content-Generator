@@ -121,14 +121,14 @@ Return ONLY valid JSON format:
   return validateScriptAndBgm(parsed);
 }
 
-export async function generateTimeline(targetDuration: number, assets: AssetMetadata[]): Promise<TimelineBlueprint> {
+export async function generateTimeline(targetDuration: number, assets: AssetMetadata[], srtTranscript: string = ''): Promise<TimelineBlueprint> {
   console.log('[AI Director Phase 2] Meracik timeline editing video via Gemini 2.5 Flash...');
   const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || process.env.GOOGLE_GENAI_API_KEY });
   const assetInfo = assets.map(a => `${path.basename(a.file)} (Duration: ${a.duration}s)`).join('\n');
   
   const prompt = `You are an expert Video Editor. We have these B-Roll clips:
 ${assetInfo}
-
+${srtTranscript ? `\nHere is the SRT transcript with timestamps:\n\n${srtTranscript}\n\nPlease align the clip cuts with the spoken sentences where possible.\n` : ''}
 We need to create an exact video editing timeline.
 Total sum of all clip durations MUST equal EXACTLY ${targetDuration} seconds.
 You can trim or reuse clips. Do not exceed the original clip's duration in a single cut.

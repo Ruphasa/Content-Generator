@@ -118,6 +118,16 @@ async function syncVisualGuide(spreadsheetId: string): Promise<{ success: boolea
   }
 }
 
+// ─── Assets sheet layout (0-indexed columns; see CLAUDE.md "Assets Sheet") ────
+/** Column C — "Keterangan" / filename. */
+const ASSETS_KETERANGAN_COLUMN = 2;
+/** Column B — legacy filename position, used only when Column C is empty. */
+const ASSETS_KETERANGAN_FALLBACK_COLUMN = 1;
+/** Column D — the download link. */
+const ASSETS_URL_COLUMN = 3;
+/** Human-readable label for {@link ASSETS_URL_COLUMN}, used in error messages. */
+const ASSETS_URL_COLUMN_LABEL = 'D';
+
 async function syncAssets(spreadsheetId: string): Promise<{ success: boolean; message: string; folders: AssetFolder[] }> {
   try {
     const sheetData = await getSpreadsheetData(spreadsheetId, 'Assets');
@@ -133,16 +143,24 @@ async function syncAssets(spreadsheetId: string): Promise<{ success: boolean; me
 
     const folderMap = new Map<string, { url: string; filename?: string }[]>();
 
+    let dataRows = 0;
+
     for (let i = startIndex; i < sheetData.length; i++) {
       const row = sheetData[i];
-      
-      if (row.length < 2) continue;
+      if (!row || row.every((cell) => !String(cell ?? '').trim())) continue;
+      dataRows++;
 
       const folderName = String(row[0]).trim() || `Folder Unnamed`;
-      const url = String(row[1]).trim();
-      const keterangan = row.length > 2 ? String(row[2]).trim() : undefined;
+      const keterangan = row[ASSETS_KETERANGAN_COLUMN]
+        ? String(row[ASSETS_KETERANGAN_COLUMN]).trim()
+        : (row[ASSETS_KETERANGAN_FALLBACK_COLUMN] ? String(row[ASSETS_KETERANGAN_FALLBACK_COLUMN]).trim() : undefined);
 
+      // Explicitly read Column D (row[3]) for Link Download
+      let url = row[ASSETS_URL_COLUMN] ? String(row[ASSETS_URL_COLUMN]).trim() : '';
       if (!url) continue;
+      if (!/^https?:\/\//i.test(url)) {
+        url = `https://${url}`;
+      }
 
       if (!folderMap.has(folderName)) {
         folderMap.set(folderName, []);
@@ -161,7 +179,23 @@ async function syncAssets(spreadsheetId: string): Promise<{ success: boolean; me
       }
     }
 
-    return { success: true, message: `Berhasil menyinkronkan ${folders.length} folder dengan ${folders.reduce((acc, f) => acc + f.files.length, 0)} aset!`, folders };
+    // `files` is always [] here — assets are fetched later, server-side — so the
+    // only meaningful count is the number of remote URLs collected.
+    const totalUrls = folders.reduce((acc, f) => acc + (f.remoteUrls?.length ?? 0), 0);
+
+    // Rows present but no URL in the expected column almost always means the
+    // sheet layout moved. Say so instead of quietly reporting "0 aset".
+    if (dataRows > 0 && totalUrls === 0) {
+      return {
+        success: false,
+        message:
+          `Sheet Assets berisi ${dataRows} baris data, tetapi tidak ada URL yang terbaca. ` +
+          `Pastikan tautan download berada di Kolom ${ASSETS_URL_COLUMN_LABEL} (Link Download) pada sheet Assets.`,
+        folders: [],
+      };
+    }
+
+    return { success: true, message: `Berhasil menyinkronkan ${folders.length} folder dengan ${totalUrls} aset!`, folders };
   } catch (error: unknown) {
     console.error('Error syncing assets:', error);
     return { success: false, message: (error as Error).message || 'Gagal menyinkronkan Assets', folders: [] };
@@ -192,6 +226,11 @@ export async function syncAll(spreadsheetId: string) {
     if (visualResult.success) successParts.push('Visual Guide');
     if (assetsResult.success) successParts.push('Assets');
     message += successParts.join(', ');
+    // Do not swallow the Assets failure reason — a layout mismatch in the
+    // Assets sheet is otherwise invisible behind an overall "success".
+    if (!assetsResult.success) {
+      message += ` — Assets gagal: ${assetsResult.message}`;
+    }
 
     return {
       success: true,

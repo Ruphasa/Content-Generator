@@ -367,49 +367,116 @@ export async function renderDynamicVideo(params: RenderParams): Promise<string> 
   });
 }
 
+/**
+ * Stitches a multi-clip B-roll blueprint into one video.
+ *
+ * FFmpeg's `concat` filter requires every input stream to share identical
+ * resolution, SAR and framerate, but real B-roll assets rarely agree on any
+ * of the three - `concat` then fails with EINVAL and the whole generation
+ * dies. Each clip is therefore normalised onto the same canvas (letterboxed,
+ * never cropped or stretched, via `scale` + `force_original_aspect_ratio=decrease`
+ * + `pad`), the same SAR (`setsar=1`) and the same framerate before it reaches
+ * `concat`. The muxed output is also pinned to that framerate so the
+ * container's framerate matches the normalised streams that produced it.
+ *
+ * The target canvas is the module's `DEFAULT_WIDTH` / `DEFAULT_HEIGHT` /
+ * `DEFAULT_FPS` constants - the same defaults `renderDynamicVideo` uses - so
+ * both render paths land on the same canvas. This is not parameterised on the
+ * signature: the global constraint on this module is that no existing
+ * signature changes, to avoid breaking other call sites.
+ */
 export async function stitchBlueprint(
   blueprint: DirectorBlueprint,
   voicePath: string,
-  bgmPath: string,
-  assPath: string,
-  outputPath: string
+  bgmPath?: string,
+  assPath?: string,
+  outputPath?: string
 ): Promise<string> {
+  const targetOutput = outputPath || path.join(process.cwd(), 'public', 'generations', 'final', `output_${Date.now()}.mp4`);
   return new Promise((resolve, reject) => {
-    const outputDir = path.dirname(path.resolve(outputPath));
+    const outputDir = path.dirname(path.resolve(targetOutput));
     if (!fs.existsSync(outputDir)) {
       fs.mkdirSync(outputDir, { recursive: true });
     }
 
-    let command = ffmpeg();
-    let filterGraph: string[] = [];
+    // Hardcoded 9:16 target canvas (see doc comment above).
+    const targetWidth = DEFAULT_WIDTH;
+    const targetHeight = DEFAULT_HEIGHT;
+    const targetFps = DEFAULT_FPS;
 
-    // Add inputs and trim filters based on timeline
-    blueprint.timeline.forEach((clip, i) => {
+    let command = ffmpeg();
+    const filterGraph: string[] = [];
+
+    // Add inputs and trim filters based on timeline. Each clip is first
+    // normalised onto the common canvas/SAR/framerate so every [v${i}]
+    // stream `concat` consumes is identical in every dimension it checks.
+    blueprint.timeline.forEach((clip, i: number) => {
       command = command.input(clip.file);
       const start = clip.start || 0;
-      filterGraph.push(`[${i}:v]trim=start=${start}:duration=${clip.duration},setpts=PTS-STARTPTS[v${i}];`);
+      const normalizeFilter =
+        `scale=${targetWidth}:${targetHeight}:force_original_aspect_ratio=increase,` +
+        `crop=${targetWidth}:${targetHeight},setsar=1,fps=${targetFps}`;
+      filterGraph.push(
+        `[${i}:v]${normalizeFilter},trim=start=${start}:duration=${clip.duration},setpts=PTS-STARTPTS[v${i}];`
+      );
     });
 
-    const concatInputs = blueprint.timeline.map((_, i) => `[v${i}]`).join('');
+    const concatInputs = blueprint.timeline.map((_, i: number) => `[v${i}]`).join('');
     filterGraph.push(`${concatInputs}concat=n=${blueprint.timeline.length}:v=1:a=0[vconcat];`);
 
-    command = command.input(voicePath).input(bgmPath);
+    command = command.input(voicePath);
     const vIdx = blueprint.timeline.length;
-    const bIdx = blueprint.timeline.length + 1;
 
-    // Audio ducking + Ass Subtitles
-    filterGraph.push(`[${vIdx}:a][${bIdx}:a]amix=inputs=2:duration=first:dropout_transition=2[aout];`);
-    const escapedAss = escapeFilterPath(assPath);
-    filterGraph.push(`[vconcat]ass=${escapedAss}[vout]`);
+    // Audio always leaves through the filtergraph as [aout]. fluent-ffmpeg's
+    // `.map()` bracket-wraps whatever it is given, so a raw input specifier like
+    // `1:a` would be re-read as a filtergraph label that does not exist
+    // ("Output with label '1:a' does not exist in any defined filter graph").
+    // With no BGM the voice is passed through `anull` purely to give it a label.
+    if (bgmPath && fs.existsSync(bgmPath)) {
+      command = command.input(bgmPath);
+      const bIdx = blueprint.timeline.length + 1;
+      filterGraph.push(`[${bIdx}:a]volume=0.2[bgm_quiet];`);
+      filterGraph.push(`[${vIdx}:a][bgm_quiet]amix=inputs=2:duration=first:dropout_transition=2[aout];`);
+    } else {
+      filterGraph.push(`[${vIdx}:a]anull[aout];`);
+    }
 
+    let videoOutTag = '[vconcat]';
+    if (assPath && fs.existsSync(assPath)) {
+      const escapedAss = escapeFilterPath(assPath);
+      filterGraph.push(`[vconcat]ass=${escapedAss}[vout]`);
+      videoOutTag = '[vout]';
+    }
+
+    // A trailing ';' left by the last chain is not valid filtergraph syntax.
+    const complexFilter = filterGraph.join('').replace(/;\s*$/, '');
+
+    const stderrLines: string[] = [];
+    const durationScan: DurationScan = { durations: new Map(), pendingInput: -1 };
     command
-      .complexFilter(filterGraph.join(''))
-      .map('[vout]')
+      .complexFilter(complexFilter)
+      .map(videoOutTag)
       .map('[aout]')
-      .outputOptions(['-c:v libx264', '-c:a aac', '-pix_fmt yuv420p'])
-      .output(outputPath)
-      .on('end', () => resolve(outputPath))
-      .on('error', reject)
+      .outputOptions(['-c:v libx264', '-c:a aac', '-pix_fmt yuv420p', `-r ${targetFps}`, '-shortest'])
+      .output(targetOutput)
+      .on('stderr', (line: string) => {
+        stderrLines.push(line);
+        if (stderrLines.length > 200) stderrLines.shift();
+        scanInputDuration(line, durationScan);
+      })
+      .on('end', () => {
+        warnIfTruncated(durationScan.durations);
+        resolve(targetOutput);
+      })
+      .on('error', (err: Error) => {
+        reject(
+          new Error(
+            `Gagal menjahit video: ${err.message}\n` +
+              `--- filter_complex ---\n${complexFilter}\n` +
+              `--- ffmpeg stderr ---\n${stderrLines.join('\n')}`
+          )
+        );
+      })
       .run();
   });
 }

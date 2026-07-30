@@ -9,16 +9,24 @@
  * Every graph below terminates in a real OUTPUT node — ComfyUI rejects a prompt
  * that has none ("Prompt has no outputs").
  *
- * Checkpoint inputs take a name RELATIVE to ComfyUI's own models directory
- * (e.g. "svd.safetensors" resolves to ComfyUI/models/checkpoints/svd.safetensors).
+ * Model inputs take a name RELATIVE to the matching ComfyUI models directory
+ * (e.g. "svd.safetensors" resolves to ComfyUI/models/checkpoints/svd.safetensors,
+ * an UNETLoader name resolves under ComfyUI/models/diffusion_models, a CLIPLoader
+ * name under models/text_encoders, a VAELoader name under models/vae).
  * Never pass an absolute filesystem path here.
+ *
+ * SVD is loaded from a single checkpoint (ImageOnlyCheckpointLoader). ACE-Step is
+ * NOT: the working local install keeps its three parts as separate files, so
+ * `buildMusicWorkflow` uses UNETLoader + CLIPLoader + VAELoader instead of
+ * CheckpointLoaderSimple. Their filenames default to the local build artifacts
+ * and are overridable via COMFYUI_ACE_STEP_UNET / _CLIP / _VAE.
  *
  * ── Node contract verification ────────────────────────────────────────────────
  * VERIFIED against ComfyUI core source (comfy_extras/nodes_video_model.py,
  * nodes_ace.py, nodes_audio.py, nodes_video.py, nodes_preview_any.py, nodes.py):
  *   ImageOnlyCheckpointLoader, SVD_img2vid_Conditioning, VideoLinearCFGGuidance,
  *   LoadImage, LoadAudio, KSampler, VAEDecode, VAEDecodeAudio, CreateVideo,
- *   SaveVideo, CheckpointLoaderSimple, TextEncodeAceStepAudio,
+ *   SaveVideo, UNETLoader, CLIPLoader, VAELoader, TextEncodeAceStepAudio,
  *   EmptyAceStepLatentAudio, ConditioningZeroOut, ModelSamplingSD3,
  *   SaveAudioMP3, PreviewAny.
  *
@@ -36,9 +44,22 @@ import type { ComfyWorkflow } from './client';
 // ─── Defaults (override with the matching env var) ────────────────────────────
 
 /** Stable Video Diffusion checkpoint, relative to ComfyUI/models/checkpoints. */
-export const DEFAULT_SVD_CHECKPOINT = 'svd.safetensors';
-/** ACE-Step checkpoint, relative to ComfyUI/models/checkpoints. */
-export const DEFAULT_ACE_STEP_CHECKPOINT = 'ace_step_v1_3.5b.safetensors';
+export const DEFAULT_SVD_CHECKPOINT = 'svd_xt.safetensors';
+/**
+ * ACE-Step diffusion transformer, relative to ComfyUI/models/diffusion_models.
+ * Override with COMFYUI_ACE_STEP_UNET.
+ */
+export const DEFAULT_ACE_STEP_UNET = 'ace_step_transformer.safetensors';
+/**
+ * ACE-Step text encoder, relative to ComfyUI/models/text_encoders. Built locally
+ * by `inject_spiece.py`. Override with COMFYUI_ACE_STEP_CLIP.
+ */
+export const DEFAULT_ACE_STEP_CLIP = 'umt5_base_ace.safetensors';
+/**
+ * Combined ACE-Step music DCAE + vocoder VAE, relative to ComfyUI/models/vae.
+ * Built locally by `merge_ace_vae.py`. Override with COMFYUI_ACE_STEP_VAE.
+ */
+export const DEFAULT_ACE_STEP_VAE = 'music_dcae_vocoder_combined.safetensors';
 /** VoxCPM model folder name under ComfyUI/models/tts/VoxCPM. */
 export const DEFAULT_VOXCPM_MODEL = 'VoxCPM2';
 /** Whisper model size accepted by ComfyUI-Whisper's combo widget. */
@@ -206,13 +227,29 @@ export function buildMusicWorkflow(options: MusicOptions): ComfyWorkflow {
   } = options;
 
   return {
-    '1': {
-      class_type: 'CheckpointLoaderSimple',
-      inputs: { ckpt_name: env('COMFYUI_ACE_STEP_CHECKPOINT', DEFAULT_ACE_STEP_CHECKPOINT) },
+    // ACE-Step is loaded as three separate components rather than via
+    // CheckpointLoaderSimple: the working local install keeps the transformer,
+    // the spiece-injected text encoder and the merged DCAE+vocoder VAE as
+    // individual files. Each is env-overridable so a second machine can point
+    // at its own filenames without editing this file.
+    '1a': {
+      class_type: 'UNETLoader',
+      inputs: {
+        unet_name: env('COMFYUI_ACE_STEP_UNET', DEFAULT_ACE_STEP_UNET),
+        weight_dtype: 'default',
+      },
+    },
+    '1b': {
+      class_type: 'CLIPLoader',
+      inputs: { clip_name: env('COMFYUI_ACE_STEP_CLIP', DEFAULT_ACE_STEP_CLIP), type: 'ace' },
+    },
+    '1c': {
+      class_type: 'VAELoader',
+      inputs: { vae_name: env('COMFYUI_ACE_STEP_VAE', DEFAULT_ACE_STEP_VAE) },
     },
     '2': {
       class_type: 'TextEncodeAceStepAudio',
-      inputs: { clip: ['1', 1], tags, lyrics, lyrics_strength: lyricsStrength },
+      inputs: { clip: ['1b', 0], tags, lyrics, lyrics_strength: lyricsStrength },
     },
     '3': {
       class_type: 'ConditioningZeroOut',
@@ -224,7 +261,7 @@ export function buildMusicWorkflow(options: MusicOptions): ComfyWorkflow {
     },
     '5': {
       class_type: 'ModelSamplingSD3',
-      inputs: { model: ['1', 0], shift },
+      inputs: { model: ['1a', 0], shift },
     },
     '6': {
       class_type: 'KSampler',
@@ -243,7 +280,7 @@ export function buildMusicWorkflow(options: MusicOptions): ComfyWorkflow {
     },
     '7': {
       class_type: 'VAEDecodeAudio',
-      inputs: { samples: ['6', 0], vae: ['1', 2] },
+      inputs: { samples: ['6', 0], vae: ['1c', 0] },
     },
     // SaveAudioMP3 is flagged deprecated on ComfyUI master but is still registered
     // and is what the official ACE-Step template uses; it is the option that works

@@ -3,7 +3,7 @@
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
-import { Readable } from 'node:stream';
+import { Readable, Transform } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 
 import type { DNAData, VisualGuideData } from '@/components/ClientLayout';
@@ -26,8 +26,9 @@ import {
   buildNarrationWorkflow,
   buildTranscriptionWorkflow,
 } from '@/lib/comfyui/workflows';
-import { scanAssets } from '@/lib/ffmpeg/probe';
-import { createEditingBlueprint } from '@/lib/google/director';
+import { scanAssets, probeDuration } from '@/lib/ffmpeg/probe';
+import { generateScriptAndBgm, generateTimeline, type DirectorBlueprint } from '@/lib/google/director';
+import { generateDirectorPlan } from '@/lib/ai/director';
 import { renderDynamicVideo, stitchBlueprint } from '@/lib/ffmpeg/dynamic_editor';
 import { generateAssFile, type WordTimestamp } from '@/lib/ffmpeg/subtitles';
 
@@ -65,9 +66,75 @@ const SVD_HEIGHT = 1024;
 const WORDS_PER_SECOND = 2.5;
 const MAX_ASSET_BYTES = 500 * 1024 * 1024; // 500MB per remote B-Roll clip
 const ASSET_FETCH_TIMEOUT_MS = 120_000;
+/**
+ * Bytes read back from the head of a finished download to prove it is binary
+ * media and not an HTML sign-in / quota / error page served with HTTP 200.
+ */
+const ASSET_HTML_SNIFF_BYTES = 512;
+/** Markers that identify an HTML page masquerading as a video download. */
+const HTML_SNIFF_MARKERS = ['<html', '<!doctype', '<head', 'google drive', 'accounts.google.com'];
+
+/** Raised when a stream exceeds `MAX_ASSET_BYTES`, so the caller can explain why. */
+class AssetTooLargeError extends Error {
+  constructor(limitBytes: number) {
+    super(`Ukuran aset melebihi batas ${Math.round(limitBytes / 1024 / 1024)}MB.`);
+    this.name = 'AssetTooLargeError';
+  }
+}
+
+/**
+ * Transform that aborts the pipeline once more than `limitBytes` have passed
+ * through. Enforced on the stream itself rather than on `content-length`, since
+ * that header is optional and can lie.
+ */
+function createByteLimiter(limitBytes: number): Transform {
+  let total = 0;
+  return new Transform({
+    transform(chunk: Buffer, _encoding, callback) {
+      total += chunk.length;
+      if (total > limitBytes) {
+        callback(new AssetTooLargeError(limitBytes));
+        return;
+      }
+      callback(null, chunk);
+    },
+  });
+}
+
+/**
+ * True when the head of `filePath` looks like an HTML document rather than a
+ * media container. Runs on every download regardless of size: a Google Drive
+ * link that is not shared publicly answers HTTP 200 with hundreds of KB of
+ * sign-in HTML, which a size-gated sniff would wave straight through.
+ */
+function looksLikeHtml(filePath: string): boolean {
+  let fd: number | undefined;
+  try {
+    const buffer = Buffer.alloc(ASSET_HTML_SNIFF_BYTES);
+    fd = fs.openSync(filePath, 'r');
+    const bytesRead = fs.readSync(fd, buffer, 0, ASSET_HTML_SNIFF_BYTES, 0);
+    const head = buffer.subarray(0, bytesRead).toString('utf8').toLowerCase();
+    return HTML_SNIFF_MARKERS.some((marker) => head.includes(marker));
+  } catch {
+    // Unreadable head is itself disqualifying; treat it as unusable.
+    return true;
+  } finally {
+    if (fd !== undefined) fs.closeSync(fd);
+  }
+}
 
 function videoDurationSeconds(): number {
   return SVD_VIDEO_FRAMES / SVD_FPS;
+}
+
+function toDirectDriveUrl(url: string): string {
+  const match = url.match(/drive\.google\.com\/file\/d\/([a-zA-Z0-9_-]{25,})/) ||
+                url.match(/drive\.google\.com\/uc\?id=([a-zA-Z0-9_-]{25,})/) ||
+                url.match(/id=([a-zA-Z0-9_-]{25,})/);
+  if (match && match[1]) {
+    return `https://drive.usercontent.google.com/download?id=${match[1]}&export=download&confirm=t`;
+  }
+  return url;
 }
 
 function splitSentences(script: string): string[] {
@@ -268,37 +335,18 @@ export async function generateContentAction(
         // alongside the strictly-serial ComfyUI queueing later in this action.
         for (let i = 0; i < remoteUrls.length; i++) {
           const task = remoteUrls[i];
-          if (!task.url.trim()) continue;
+          if (!task.url.trim() || !/^https?:\/\//i.test(task.url.trim())) continue;
           attempted++;
 
+          const targetUrl = toDirectDriveUrl(task.url);
           let destination: string | undefined;
           try {
-            const response = await fetch(task.url, {
+            const response = await fetch(targetUrl, {
               signal: AbortSignal.timeout(ASSET_FETCH_TIMEOUT_MS),
+              cache: 'no-store',
             });
             if (!response.ok) {
-              console.error('Failed to download asset:', task.url, `HTTP ${response.status}`);
-              continue;
-            }
-
-            const contentType = response.headers.get('content-type') ?? '';
-            if (!/^(video\/|application\/octet-stream)/i.test(contentType)) {
-              warnings.push(
-                `Aset "${task.filename || task.url}" dilewati: server mengembalikan ${contentType || 'tipe tidak dikenal'}. Pastikan URL Google Drive adalah tautan unduhan langsung.`,
-              );
-              continue;
-            }
-
-            const contentLength = Number(response.headers.get('content-length'));
-            if (Number.isFinite(contentLength) && contentLength > MAX_ASSET_BYTES) {
-              warnings.push(
-                `Aset "${task.filename || task.url}" dilewati: ukuran ${(contentLength / (1024 * 1024)).toFixed(0)}MB melebihi batas ${(MAX_ASSET_BYTES / (1024 * 1024)).toFixed(0)}MB.`,
-              );
-              continue;
-            }
-
-            if (!response.body) {
-              console.error('Failed to download asset:', task.url, 'respons tidak memiliki body');
+              console.error('Failed to download asset:', targetUrl, `HTTP ${response.status}`);
               continue;
             }
 
@@ -308,14 +356,36 @@ export async function generateContentAction(
             const safeName = `${i}_${path.basename(filename)}`;
             destination = path.join(bRollDir, safeName);
 
+            // The byte limiter aborts the pipeline mid-stream once the clip
+            // exceeds MAX_ASSET_BYTES, so a missing or lying content-length
+            // header cannot fill the disk.
             await pipeline(
               Readable.fromWeb(response.body as any),
+              createByteLimiter(MAX_ASSET_BYTES),
               fs.createWriteStream(destination),
             );
+
+            // Validate that downloaded file is a real binary video, not an HTML
+            // error/login page. Unconditional: a private Drive link returns
+            // HTTP 200 with a full-size HTML page, not a tiny one.
+            if (looksLikeHtml(destination)) {
+              console.error(`[AssetDownload] File "${filename}" is HTML page instead of MP4. Removing.`);
+              fs.rmSync(destination, { force: true });
+              warnings.push(`Aset "${filename}" dilewati: Tautan Google Drive tidak publik / membutuhkan konfirmasi hak akses.`);
+              continue;
+            }
+
+            const stat = fs.statSync(destination);
             downloaded++;
+            console.log(`[AssetDownload] Berhasil mendownload B-Roll [${downloaded}/${remoteUrls.length}]: ${safeName} (${(stat.size / 1024 / 1024).toFixed(1)} MB)`);
           } catch (e) {
-            console.error('Failed to download asset:', task.url, e);
+            console.error('Failed to download asset:', targetUrl, e);
             if (destination) fs.rmSync(destination, { force: true });
+            if (e instanceof AssetTooLargeError) {
+              warnings.push(
+                `Aset "${task.filename || task.url}" dilewati: ${e.message} Perkecil file atau bagi menjadi beberapa klip.`,
+              );
+            }
           }
         }
 
@@ -343,22 +413,32 @@ export async function generateContentAction(
     let narrationText = '';
     let blueprint: any = null;
     let frameName = '';
+    let svdBgmTags = '';
 
     if (useBRollPath) {
-      // ── Stage B-Roll 1: Blueprint
+      console.log(`[Pipeline] Skenario 2 Aktif: Menggunakan ${assets.length} file B-Roll yang ter-download.`);
+      // ── Stage B-Roll 1: Blueprint Script & BGM
       const contextStr = JSON.stringify({ dna: input.dna, guide: input.visualGuide });
-      blueprint = await createEditingBlueprint(contextStr, assets);
+      const scriptBgm = await generateScriptAndBgm(contextStr);
       
-      // Fix blueprint timeline paths
-      blueprint.timeline.forEach((clip: any) => {
-        clip.file = path.join(bRollDir, path.basename(clip.file));
-        duration += clip.duration;
-      });
-      narrationText = blueprint.tts_script;
+      narrationText = scriptBgm.tts_script;
+      svdBgmTags = scriptBgm.bgm_prompt;
+      console.log(`[Pipeline] Naskah Voiceover B-Roll AI Director:\n"${narrationText}"`);
       
     } else {
+      console.log('[Pipeline] Skenario 1 Aktif: Mode Single Image (Cloudflare T2I + ComfyUI SVD).');
       // ── Stage SVD 1: Narration script setup and Cloudflare T2I
-      const script = composeNarration(input);
+      const directorPlan = await generateDirectorPlan({ dna: input.dna, visualGuide: input.visualGuide });
+      if (directorPlan.usedFallback) {
+        warnings.push(
+          `AI Director tidak aktif — memakai naskah cadangan dari Visual Guide. ${directorPlan.fallbackReason ?? ''}`.trim(),
+        );
+      }
+
+      const script = input.narrationScript?.trim() || directorPlan.narrationScript;
+      const finalImagePrompt = input.imagePrompt?.trim() || directorPlan.imagePrompt;
+      svdBgmTags = input.bgmTags?.trim() || directorPlan.bgmTags;
+
       if (!script) {
         return {
           success: false,
@@ -382,7 +462,8 @@ export async function generateContentAction(
       );
 
       const framePath = path.join(workDir, 'frame.png');
-      const imageOk = await generateImageFromCloudflare(composeImagePrompt(input), framePath);
+      console.log(`[Pipeline] Meng-generate gambar T2I via Cloudflare AI (Prompt: "${finalImagePrompt}")...`);
+      const imageOk = await generateImageFromCloudflare(finalImagePrompt, framePath);
       if (!imageOk || !fs.existsSync(framePath)) {
         return {
           success: false,
@@ -400,6 +481,7 @@ export async function generateContentAction(
     }
 
     // ── Stage 2: Narration (VoxCPM2)
+    console.log('[Pipeline] Tahap 2: Meng-generate Voiceover Indonesia via VoxCPM2 di ComfyUI...');
     const narrationEntry = await comfy.runWorkflow(
       buildNarrationWorkflow({
         text: narrationText,
@@ -410,7 +492,9 @@ export async function generateContentAction(
     const voicePath = await downloadTo(comfy, narrationFile, workDir, 'narration');
 
     // ── Stage 3: Subtitles (Whisper & ASS generation)
+    console.log('[Pipeline] Tahap 3: Transkripsi subtitle otomatis via Whisper di ComfyUI...');
     let srtPath: string | undefined;
+    let srtContent = '';
     const assPath = path.join(workDir, 'subtitles.ass');
     const srtName = `venturo_subtitles_${timestamp}`;
     const audioUpload = await comfy.uploadFile(
@@ -437,7 +521,7 @@ export async function generateContentAction(
           workDir,
           'subtitles',
         );
-        const srtContent = fs.readFileSync(srtPath, 'utf8');
+        srtContent = fs.readFileSync(srtPath, 'utf8');
         const words = parseSrt(srtContent);
         generateAssFile(words, assPath);
       }
@@ -449,8 +533,67 @@ export async function generateContentAction(
       generateAssFile([], assPath);
     }
 
+    if (useBRollPath) {
+      duration = await probeDuration(voicePath);
+      console.log(`[Pipeline] Stage B-Roll 2: Meracik timeline video menyesuaikan durasi audio ${duration.toFixed(2)}s...`);
+      const targetDuration = Number(duration.toFixed(1));
+      const timelineResult = await generateTimeline(targetDuration, assets, srtContent);
+      
+      let timelineSum = 0;
+      // Fix blueprint timeline paths and sanitize against hallucinations
+      timelineResult.timeline.forEach((clip: any) => {
+        // Step 1: Pindahkan pencarian aset ke awal iterasi
+        let originalAsset = assets.find((a: any) => path.basename(a.file) === path.basename(clip.file));
+        if (!originalAsset) {
+          originalAsset = assets[0];
+          clip.file = originalAsset.file;
+        }
+
+        // Step 2: Sanitasi atribut start
+        clip.start = Math.max(0, clip.start || 0);
+        if (clip.start >= originalAsset.duration) {
+          clip.start = 0;
+        }
+
+        // Step 3: Sanitasi atribut duration
+        const maxAvailable = originalAsset.duration - clip.start;
+        if (clip.duration > maxAvailable) {
+          clip.duration = maxAvailable;
+        }
+
+        // Step 4: Update timelineSum dan Path
+        timelineSum += clip.duration;
+        clip.file = path.join(bRollDir, path.basename(clip.file));
+      });
+
+      if (timelineSum < targetDuration) {
+        const delta = targetDuration - timelineSum;
+        const lastClip = timelineResult.timeline[timelineResult.timeline.length - 1];
+        if (lastClip) {
+          const originalAsset = assets.find((a: any) => path.basename(a.file) === path.basename(lastClip.file));
+          if (originalAsset) {
+            const maxAddable = Math.max(0, originalAsset.duration - ((lastClip.start || 0) + lastClip.duration));
+            const added = Math.min(delta, maxAddable);
+            lastClip.duration += added;
+            timelineSum += added;
+          }
+        }
+      }
+
+      if (timelineSum < duration) {
+        warnings.push(`AI Director menghasilkan total klip (${timelineSum.toFixed(2)} s) yang lebih pendek dari narasi (${duration.toFixed(2)} s). Ekor kalimat mungkin terpotong.`);
+      }
+
+      blueprint = {
+        tts_script: narrationText,
+        bgm_prompt: svdBgmTags,
+        timeline: timelineResult.timeline,
+      };
+    }
+
     // ── Stage 4: Background music (ACE-Step)
-    const bgmPromptStr = useBRollPath && blueprint ? blueprint.bgm_prompt : (input.bgmTags?.trim() || composeBgmTags(input));
+    const bgmPromptStr = useBRollPath && blueprint ? blueprint.bgm_prompt : (svdBgmTags || input.bgmTags?.trim() || composeBgmTags(input));
+    console.log(`[Pipeline] Tahap 4: Meng-generate musik latar BGM via ACE-Step di ComfyUI (Prompt: "${bgmPromptStr}")...`);
     const musicEntry = await comfy.runWorkflow(
       buildMusicWorkflow({
         tags: bgmPromptStr,
@@ -461,6 +604,7 @@ export async function generateContentAction(
     const bgmPath = await downloadTo(comfy, musicFile, workDir, 'bgm');
 
     // ── Stage 5: Render
+    console.log('[Pipeline] Tahap 5: Merender video akhir & audio mixing via FFmpeg...');
     const finalDir = path.join(process.cwd(), 'public', 'generations', 'final');
     if (!fs.existsSync(finalDir)) {
       fs.mkdirSync(finalDir, { recursive: true });

@@ -1,0 +1,50 @@
+{
+  "breakdown": {
+    "planning": 15,
+    "context": 15,
+    "decomposition": 15,
+    "delegation": 18,
+    "verification": 20,
+    "token_efficiency": 12,
+    "documentation": 5
+  },
+  "total_score": 100,
+  "applicable_dimensions": [
+    "planning",
+    "context",
+    "decomposition",
+    "delegation",
+    "verification",
+    "token_efficiency",
+    "documentation"
+  ],
+  "na_dimensions": {},
+  "weights_applied": {
+    "planning": 15,
+    "context": 15,
+    "decomposition": 15,
+    "delegation": 18,
+    "verification": 20,
+    "token_efficiency": 12,
+    "documentation": 5
+  },
+  "score_basis": {
+    "earned_applicable": 100,
+    "max_applicable": 100,
+    "activity_signal": 1,
+    "na_basis": "imputed"
+  },
+  "misses": [],
+  "misses_typed": [],
+  "next_session_advice": "Penguasaan ekosistem Agentic dan alat bantu visualisasi (Graphify) Anda sudah berada di level arsitek. Pertahankan gaya komunikasi asertif namun kolaboratif ini.",
+  "prompt_analysis": {
+    "weak_patterns": [],
+    "example_rewrites": []
+  },
+  "session_id": "5fbee664-9b85-4ae7-9a3b-5c25b3fc23d0",
+  "session_date": "2026-07-29T10:44:00Z",
+  "session_name": "Smart Director Pipeline & Asset Wiring",
+  "compacted": false,
+  "participant": "Rizqi Fauzan",
+  "grademe_version": "0.7.2"
+}

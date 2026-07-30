@@ -109,7 +109,7 @@ src/
 2. Spreadsheet structure:
    - **BrandProfile** sheet: Vertical parsing (Column A = key, Column B = value)
    - **VisualGuideline** sheet: Vertical parsing (Column A = key, Column B = value)
-   - **Assets** sheet: Column A = folder name, Column B = file URLs, Column C = filename
+   - **Assets** sheet: Column A = folder name, Column C = filename (Keterangan), Column D = file URL (Link Download)
 
 ### Usage
 - Click Global Sync Button in the top header
@@ -156,9 +156,10 @@ showWarning("Peringatan: Bucket belum dibuat");
 - VisualGuideline uses keys like: `konten`, `referensi`, `hook`, `validasi`, `action (cta)`, dll.
 
 ### Assets Sheet
-- **Column 1:** Folder name (Folder)
-- **Column 2:** Google Drive URL
-- **Column 3:** Keterangan (Filename)
+- **Column A (1):** Folder name (Folder)
+- **Column C (3):** Keterangan (Filename) — falls back to Column B when C is empty
+- **Column D (4):** Google Drive URL (Link Download)
+- *Note:* If the sheet has data rows but no URL in Column D, `syncAssets` returns `success: false` naming the expected column rather than silently reporting "0 aset".
 - *Note:* Files are NOT downloaded during sync. Only the Google Drive URLs are stored in state; they are fetched later, server-side, by whichever FFmpeg stage needs the bytes.
 
 ## Styling Guidelines

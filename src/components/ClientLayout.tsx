@@ -11,9 +11,10 @@ import SidecarChatbot from './SidecarChatbot';
 import ToastContainer, { showSuccess, showError, showInfo, showWarning } from './Toast';
 import { createClient } from '@/lib/supabase/client';
 import { useRouter } from 'next/navigation';
-import { Beaker, Folder, PanelLeftClose, PanelLeftOpen, User, LayoutDashboard, LayoutTemplate, FileVideo, RefreshCw } from 'lucide-react';
+import { Beaker, Folder, FolderOpen, PanelLeftClose, PanelLeftOpen, User, LayoutDashboard, LayoutTemplate, FileVideo, RefreshCw, Wand2, Monitor, Cloud } from 'lucide-react';
 import { syncAll } from '@/app/actions/sync';
 import { generateContentAction } from '@/app/actions/generate';
+import { generatePremiumAction } from '@/app/actions/generatePremium';
 
 export type AssetFolder = {
   id: string;
@@ -90,7 +91,9 @@ export default function ClientLayout() {
   });
 
   const [isGenerateModalOpen, setIsGenerateModalOpen] = useState(false);
+  const [generateMode, setGenerateMode] = useState<'local' | 'api'>('local');
   const [selectedFolderId, setSelectedFolderId] = useState<string>('');
+  const [hoveredFolderId, setHoveredFolderId] = useState<string | null>(null);
   
   const [generateProgress, setGenerateProgress] = useState<{ progress: number, message: string } | null>(null);
   const [generatedVideoUrl, setGeneratedVideoUrl] = useState<string | null>(null);
@@ -137,6 +140,10 @@ export default function ClientLayout() {
     if (savedSpreadsheetId) {
       setSpreadsheetIdInput(savedSpreadsheetId);
     }
+    const savedVideoUrl = localStorage.getItem('last_generated_video');
+    if (savedVideoUrl) {
+      setGeneratedVideoUrl(savedVideoUrl);
+    }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
@@ -176,13 +183,20 @@ export default function ClientLayout() {
     const handleConfirmGenerate = async () => {
     setIsGenerateModalOpen(false);
     setActivePage('content');
-    setGenerateProgress({ progress: 10, message: "Menjalankan AI Video Generator Pipeline (ComfyUI)..." });
-    setGeneratedVideoUrl(null);
+    setGenerateProgress({
+      progress: 10,
+      message: generateMode === 'api'
+        ? "Menjalankan AI Video Premium Pipeline (Veo + Cloud TTS)..."
+        : "Menjalankan AI Video Generator Pipeline (ComfyUI)...",
+    });
+    if (generateMode === 'local') {
+      setGeneratedVideoUrl(null);
+    }
 
     try {
       const selectedFolder = assetFolders.find(f => f.id === selectedFolderId);
 
-      const result = await generateContentAction({
+      const payload = {
         dna: dnaData,
         visualGuide: visualGuide,
         assetFolder: selectedFolder
@@ -192,10 +206,15 @@ export default function ClientLayout() {
               remoteUrls: selectedFolder.remoteUrls,
             }
           : undefined,
-      });
+      };
 
-      if (result.warnings && result.warnings.length > 0) {
-        result.warnings.forEach((warning) => {
+      const result = generateMode === 'api'
+        ? await generatePremiumAction(payload)
+        : await generateContentAction(payload);
+
+      const warnings = result.warnings;
+      if (warnings && warnings.length > 0) {
+        warnings.forEach((warning) => {
           showWarning(warning);
         });
       }
@@ -206,9 +225,15 @@ export default function ClientLayout() {
 
       if (result.videoUrl) {
         setGeneratedVideoUrl(result.videoUrl);
+        localStorage.setItem('last_generated_video', result.videoUrl);
+        setActivePage('content');
       }
       setGenerateProgress(null);
-      showSuccess(result.message || "Video berhasil dibuat!");
+      if (result.videoUrl) {
+        showSuccess(result.message || "Video berhasil dibuat!");
+      } else {
+        showInfo(result.message || "Proses selesai.");
+      }
     } catch (err: any) {
       console.error(err);
       showError(err.message || "Terjadi kesalahan sistem saat memproses video.");
@@ -404,8 +429,20 @@ export default function ClientLayout() {
             )}
           </div>
         </div>
+      </main>
 
-        {/* Generate Modal */}
+      {/* 3. RIGHT PANEL (AI CHATBOT) */}
+      <aside className="w-[380px] h-full flex-shrink-0 pt-4 z-20">
+        <SidecarChatbot 
+          dnaData={dnaData} 
+          isReady={true} 
+          activeModal={activeModal} 
+          onApplySuggestion={updateMultipleDNA}
+        />
+      </aside>
+
+      {/* MODALS MOVED OUTSIDE OF MAIN TO FIX Z-INDEX STACKING CONTEXT */}
+      {/* Generate Modal */}
         {isGenerateModalOpen && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-gray-900/40 backdrop-blur-sm">
             <div className="bg-white rounded-3xl p-6 w-full max-w-md shadow-2xl border border-gray-100 flex flex-col gap-4">
@@ -413,6 +450,41 @@ export default function ClientLayout() {
               <p className="text-sm text-gray-500">
                 Pilih folder tambahan untuk konten ini. Jika tidak memilih folder, akan menggunakan aset global saja.
               </p>
+
+              {/* Pill Toggle - Seluruh area bisa di-klik */}
+              <div 
+                onClick={() => setGenerateMode(generateMode === 'api' ? 'local' : 'api')}
+                className="relative flex bg-gray-100 p-1.5 rounded-full w-full max-w-sm mx-auto my-5 cursor-pointer select-none"
+              >
+                {/* Sliding Background */}
+                <div 
+                  className={`absolute top-1.5 bottom-1.5 w-[calc(50%-0.375rem)] bg-white rounded-full shadow-sm transition-all duration-300 ease-in-out ${
+                    generateMode === 'api' ? 'left-[calc(50%+0.1875rem)]' : 'left-1.5'
+                  }`}
+                />
+                
+                {/* Local Label */}
+                <div
+                  className={`flex-1 flex justify-center items-center gap-2 py-2 text-sm font-bold transition-all duration-300 relative z-10 ${
+                    generateMode === 'local' 
+                      ? 'text-[var(--venturo-teal)] scale-100' 
+                      : 'text-gray-500 group-hover:text-gray-700 scale-95'
+                  }`}
+                >
+                  <Monitor className="w-4 h-4" /> Local Engine
+                </div>
+
+                {/* API Label */}
+                <div
+                  className={`flex-1 flex justify-center items-center gap-2 py-2 text-sm font-bold transition-all duration-300 relative z-10 ${
+                    generateMode === 'api' 
+                      ? 'text-[var(--venturo-teal)] scale-100' 
+                      : 'text-gray-500 group-hover:text-gray-700 scale-95'
+                  }`}
+                >
+                  <Cloud className="w-4 h-4" /> Cloud API
+                </div>
+              </div>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 {/* Folder Cards */}
@@ -420,16 +492,20 @@ export default function ClientLayout() {
                   <div 
                     key={f.id}
                     onClick={() => setSelectedFolderId(selectedFolderId === f.id ? '' : f.id)}
-                    className="group flex flex-col items-center justify-center p-6 cursor-pointer transition-transform hover:scale-105"
-                  >
-                    <div className={`w-16 h-16 rounded-full flex items-center justify-center mb-3 transition-colors ${
+                    onMouseEnter={() => setHoveredFolderId(f.id)}
+                    onMouseLeave={() => setHoveredFolderId(null)}
+                    className={`group/folder flex flex-col items-center justify-center p-4 rounded-2xl border-2 cursor-pointer transition-all duration-300 ${
                       selectedFolderId === f.id 
-                        ? 'bg-[var(--venturo-teal)]/20' 
-                        : 'bg-[var(--venturo-teal)]/10'
-                    }`}>
-                      <Folder className={`w-8 h-8 fill-current transition-opacity ${
-                        selectedFolderId === f.id ? 'opacity-100' : 'opacity-60'
-                      }`} />
+                        ? 'border-[var(--venturo-teal)] bg-[var(--venturo-teal)]/5 shadow-sm scale-105' 
+                        : 'border-gray-100 hover:border-[var(--venturo-teal)]/30 hover:bg-gray-50/50 hover:scale-105'
+                    }`}
+                  >
+                    <div className="mb-2 flex items-center justify-center">
+                      {selectedFolderId === f.id || hoveredFolderId === f.id ? (
+                        <FolderOpen className={`w-14 h-14 transition-all duration-300 ${selectedFolderId === f.id ? 'text-[var(--venturo-teal)] fill-[var(--venturo-teal)]/10 scale-110' : 'text-gray-500 fill-gray-100 scale-105'}`} />
+                      ) : (
+                        <Folder className="w-14 h-14 text-gray-400 fill-gray-50 transition-all duration-300" />
+                      )}
                     </div>
                     <h4 className={`font-semibold text-center ${
                       selectedFolderId === f.id ? 'text-[var(--venturo-teal)]' : 'text-gray-600'
@@ -448,25 +524,15 @@ export default function ClientLayout() {
                 </button>
                 <button 
                   onClick={handleConfirmGenerate}
-                  className="px-5 py-2.5 rounded-xl font-bold bg-[var(--venturo-teal)] text-white shadow-lg hover:bg-[var(--venturo-dark)] transition-colors flex items-center gap-2"
+                  className="px-5 py-2.5 rounded-xl font-bold bg-[var(--venturo-teal)] text-white shadow-lg hover:bg-[var(--venturo-dark)] transition-all flex items-center gap-2"
                 >
-                  Kirim ke AI Auto
+                  <Wand2 className="w-4 h-4" />
+                  {generateMode === 'api' ? 'Render via Cloud API' : 'Mulai Local Generate'}
                 </button>
               </div>
             </div>
           </div>
         )}
-      </main>
-
-      {/* 3. RIGHT PANEL (AI CHATBOT) */}
-      <aside className="w-[380px] h-full flex-shrink-0 pt-4 z-20">
-        <SidecarChatbot 
-          dnaData={dnaData} 
-          isReady={true} 
-          activeModal={activeModal} 
-          onApplySuggestion={updateMultipleDNA}
-        />
-      </aside>
 
       {/* Toast Container */}
       <ToastContainer toasts={[]} onClose={(id) => {

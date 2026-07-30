@@ -510,8 +510,8 @@ export async function generateContentAction(
         if (lastClip) {
           const originalAsset = assets.find((a: any) => path.basename(a.file) === path.basename(lastClip.file));
           if (originalAsset) {
-            const maxAvailable = originalAsset.duration - (lastClip.start || 0);
-            const added = Math.min(delta, maxAvailable);
+            const maxAddable = Math.max(0, originalAsset.duration - ((lastClip.start || 0) + lastClip.duration));
+            const added = Math.min(delta, maxAddable);
             lastClip.duration += added;
             timelineSum += added;
           }

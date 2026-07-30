@@ -93,6 +93,7 @@ export default function ClientLayout() {
   const [isGenerateModalOpen, setIsGenerateModalOpen] = useState(false);
   const [generateMode, setGenerateMode] = useState<'local' | 'api'>('local');
   const [selectedFolderId, setSelectedFolderId] = useState<string>('');
+  const [hoveredFolderId, setHoveredFolderId] = useState<string | null>(null);
   
   const [generateProgress, setGenerateProgress] = useState<{ progress: number, message: string } | null>(null);
   const [generatedVideoUrl, setGeneratedVideoUrl] = useState<string | null>(null);
@@ -444,26 +445,19 @@ export default function ClientLayout() {
                   <div 
                     key={f.id}
                     onClick={() => setSelectedFolderId(selectedFolderId === f.id ? '' : f.id)}
+                    onMouseEnter={() => setHoveredFolderId(f.id)}
+                    onMouseLeave={() => setHoveredFolderId(null)}
                     className={`group/folder flex flex-col items-center justify-center p-4 rounded-2xl border-2 cursor-pointer transition-all duration-300 ${
                       selectedFolderId === f.id 
                         ? 'border-[var(--venturo-teal)] bg-[var(--venturo-teal)]/5 shadow-sm scale-105' 
                         : 'border-gray-100 hover:border-[var(--venturo-teal)]/30 hover:bg-gray-50/50 hover:scale-105'
                     }`}
                   >
-                    <div className="relative w-16 h-16 mx-auto mb-2 flex items-center justify-center group/folder">
-                      {/* Lapis Pertama (Kertas): FileText absolut di belakang */}
-                      <FileText 
-                        className={`absolute w-7 h-7 text-[var(--venturo-teal)] transition-all duration-300 ${
-                          selectedFolderId === f.id
-                            ? '-translate-y-4 rotate-[-10deg] opacity-100'
-                            : '-translate-y-2 opacity-60 group-hover/folder:-translate-y-4 group-hover/folder:rotate-[-10deg] group-hover/folder:opacity-100'
-                        }`}
-                      />
-                      {/* Lapis Kedua (Folder Depan): Folder / FolderOpen di depan */}
-                      {selectedFolderId === f.id ? (
-                        <FolderOpen className="relative z-10 w-8 h-8 text-[var(--venturo-teal)] fill-[var(--venturo-teal)]/20 transition-all duration-300" />
+                    <div className="mb-2 flex items-center justify-center">
+                      {selectedFolderId === f.id || hoveredFolderId === f.id ? (
+                        <FolderOpen className={`w-14 h-14 transition-all duration-300 ${selectedFolderId === f.id ? 'text-[var(--venturo-teal)] fill-[var(--venturo-teal)]/10 scale-110' : 'text-gray-500 fill-gray-100 scale-105'}`} />
                       ) : (
-                        <Folder className="relative z-10 w-8 h-8 text-gray-500 group-hover/folder:text-[var(--venturo-teal)] transition-all duration-300" />
+                        <Folder className="w-14 h-14 text-gray-400 fill-gray-50 transition-all duration-300" />
                       )}
                     </div>
                     <h4 className={`font-semibold text-center ${

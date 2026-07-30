@@ -33,3 +33,17 @@ export async function scanAssets(dir: string): Promise<AssetMetadata[]> {
   }
   return results;
 }
+
+export async function probeDuration(filePath: string): Promise<number> {
+  return new Promise<number>((resolve, reject) => {
+    ffmpeg.ffprobe(filePath, (err, metadata) => {
+      const probed = Number(metadata?.format?.duration);
+      if (err || !Number.isFinite(probed) || probed <= 0) {
+        reject(new Error('Gagal membaca durasi file audio.'));
+      } else {
+        resolve(probed);
+      }
+    });
+  });
+}
+

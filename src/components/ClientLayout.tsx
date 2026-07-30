@@ -137,6 +137,10 @@ export default function ClientLayout() {
     if (savedSpreadsheetId) {
       setSpreadsheetIdInput(savedSpreadsheetId);
     }
+    const savedVideoUrl = localStorage.getItem('last_generated_video');
+    if (savedVideoUrl) {
+      setGeneratedVideoUrl(savedVideoUrl);
+    }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
@@ -206,6 +210,7 @@ export default function ClientLayout() {
 
       if (result.videoUrl) {
         setGeneratedVideoUrl(result.videoUrl);
+        localStorage.setItem('last_generated_video', result.videoUrl);
         setActivePage('content');
       }
       setGenerateProgress(null);

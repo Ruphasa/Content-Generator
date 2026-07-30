@@ -5,9 +5,7 @@ import { motion } from 'framer-motion';
 
 export default function ContentPage({ progress, videoUrl }: { progress?: { progress: number, message: string, isError?: boolean } | null, videoUrl?: string | null }) {
   // Temporary hardcoded source
-  const tempVideos = [
-    "/generations/final/final_1784866065834.mp4"
-  ];
+  const tempVideos: string[] = [];
   
   // Combine props and hardcoded data
   const allVideos = videoUrl && !tempVideos.includes(videoUrl) ? [videoUrl, ...tempVideos] : tempVideos;

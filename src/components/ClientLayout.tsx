@@ -188,7 +188,9 @@ export default function ClientLayout() {
         ? "Menjalankan AI Video Premium Pipeline (Veo + Cloud TTS)..."
         : "Menjalankan AI Video Generator Pipeline (ComfyUI)...",
     });
-    setGeneratedVideoUrl(null);
+    if (generateMode === 'local') {
+      setGeneratedVideoUrl(null);
+    }
 
     try {
       const selectedFolder = assetFolders.find(f => f.id === selectedFolderId);
@@ -209,7 +211,7 @@ export default function ClientLayout() {
         ? await generatePremiumAction(payload)
         : await generateContentAction(payload);
 
-      const warnings = 'warnings' in result ? result.warnings : [];
+      const warnings = result.warnings;
       if (warnings && warnings.length > 0) {
         warnings.forEach((warning) => {
           showWarning(warning);
@@ -226,7 +228,11 @@ export default function ClientLayout() {
         setActivePage('content');
       }
       setGenerateProgress(null);
-      showSuccess(result.message || "Video berhasil dibuat!");
+      if (result.videoUrl) {
+        showSuccess(result.message || "Video berhasil dibuat!");
+      } else {
+        showInfo(result.message || "Proses selesai.");
+      }
     } catch (err: any) {
       console.error(err);
       showError(err.message || "Terjadi kesalahan sistem saat memproses video.");
@@ -462,12 +468,14 @@ export default function ClientLayout() {
                 <div className="flex gap-2">
                   <button
                     onClick={() => setGenerateMode('local')}
+                    aria-pressed={generateMode === 'local'}
                     className={`flex-1 py-2 rounded-xl text-sm font-medium transition-colors ${generateMode === 'local' ? 'bg-[var(--venturo-teal)] text-white' : 'bg-gray-100 text-gray-600'}`}
                   >
                     Local (Gratis)
                   </button>
                   <button
                     onClick={() => setGenerateMode('api')}
+                    aria-pressed={generateMode === 'api'}
                     className={`flex-1 py-2 rounded-xl text-sm font-medium transition-colors ${generateMode === 'api' ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-600'}`}
                   >
                     Premium API (Berbayar)

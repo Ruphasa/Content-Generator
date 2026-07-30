@@ -498,8 +498,28 @@ export async function generateContentAction(
       const timelineResult = await generateTimeline(targetDuration, assets);
       
       let timelineSum = 0;
-      // Fix blueprint timeline paths
+      // Fix blueprint timeline paths and sanitize against hallucinations
       timelineResult.timeline.forEach((clip: any) => {
+        // Step 1: Pindahkan pencarian aset ke awal iterasi
+        let originalAsset = assets.find((a: any) => path.basename(a.file) === path.basename(clip.file));
+        if (!originalAsset) {
+          originalAsset = assets[0];
+          clip.file = originalAsset.file;
+        }
+
+        // Step 2: Sanitasi atribut start
+        clip.start = Math.max(0, clip.start || 0);
+        if (clip.start >= originalAsset.duration) {
+          clip.start = 0;
+        }
+
+        // Step 3: Sanitasi atribut duration
+        const maxAvailable = originalAsset.duration - clip.start;
+        if (clip.duration > maxAvailable) {
+          clip.duration = maxAvailable;
+        }
+
+        // Step 4: Update timelineSum dan Path
         timelineSum += clip.duration;
         clip.file = path.join(bRollDir, path.basename(clip.file));
       });

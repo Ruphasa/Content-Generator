@@ -494,12 +494,33 @@ export async function generateContentAction(
     if (useBRollPath) {
       duration = await probeDuration(voicePath);
       console.log(`[Pipeline] Stage B-Roll 2: Meracik timeline video menyesuaikan durasi audio ${duration.toFixed(2)}s...`);
-      const timelineResult = await generateTimeline(duration, assets);
+      const targetDuration = Number(duration.toFixed(1));
+      const timelineResult = await generateTimeline(targetDuration, assets);
       
+      let timelineSum = 0;
       // Fix blueprint timeline paths
       timelineResult.timeline.forEach((clip: any) => {
+        timelineSum += clip.duration;
         clip.file = path.join(bRollDir, path.basename(clip.file));
       });
+
+      if (timelineSum < targetDuration) {
+        const delta = targetDuration - timelineSum;
+        const lastClip = timelineResult.timeline[timelineResult.timeline.length - 1];
+        if (lastClip) {
+          const originalAsset = assets.find((a: any) => path.basename(a.file) === path.basename(lastClip.file));
+          if (originalAsset) {
+            const maxAvailable = originalAsset.duration - (lastClip.start || 0);
+            const added = Math.min(delta, maxAvailable);
+            lastClip.duration += added;
+            timelineSum += added;
+          }
+        }
+      }
+
+      if (timelineSum < duration) {
+        warnings.push(`AI Director menghasilkan total klip (${timelineSum.toFixed(2)} s) yang lebih pendek dari narasi (${duration.toFixed(2)} s). Ekor kalimat mungkin terpotong.`);
+      }
 
       blueprint = {
         tts_script: narrationText,

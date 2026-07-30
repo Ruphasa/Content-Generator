@@ -206,6 +206,7 @@ export default function ClientLayout() {
 
       if (result.videoUrl) {
         setGeneratedVideoUrl(result.videoUrl);
+        setActivePage('content');
       }
       setGenerateProgress(null);
       showSuccess(result.message || "Video berhasil dibuat!");

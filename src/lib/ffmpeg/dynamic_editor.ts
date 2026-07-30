@@ -414,8 +414,8 @@ export async function stitchBlueprint(
       command = command.input(clip.file);
       const start = clip.start || 0;
       const normalizeFilter =
-        `scale=${targetWidth}:${targetHeight}:force_original_aspect_ratio=decrease,` +
-        `pad=${targetWidth}:${targetHeight}:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=${targetFps}`;
+        `scale=${targetWidth}:${targetHeight}:force_original_aspect_ratio=increase,` +
+        `crop=${targetWidth}:${targetHeight},setsar=1,fps=${targetFps}`;
       filterGraph.push(
         `[${i}:v]${normalizeFilter},trim=start=${start}:duration=${clip.duration},setpts=PTS-STARTPTS[v${i}];`
       );
@@ -451,17 +451,22 @@ export async function stitchBlueprint(
     const complexFilter = filterGraph.join('').replace(/;\s*$/, '');
 
     const stderrLines: string[] = [];
+    const durationScan: DurationScan = { durations: new Map(), pendingInput: -1 };
     command
       .complexFilter(complexFilter)
       .map(videoOutTag)
       .map('[aout]')
-      .outputOptions(['-c:v libx264', '-c:a aac', '-pix_fmt yuv420p', `-r ${targetFps}`])
+      .outputOptions(['-c:v libx264', '-c:a aac', '-pix_fmt yuv420p', `-r ${targetFps}`, '-shortest'])
       .output(targetOutput)
       .on('stderr', (line: string) => {
         stderrLines.push(line);
         if (stderrLines.length > 200) stderrLines.shift();
+        scanInputDuration(line, durationScan);
       })
-      .on('end', () => resolve(targetOutput))
+      .on('end', () => {
+        warnIfTruncated(durationScan.durations);
+        resolve(targetOutput);
+      })
       .on('error', (err: Error) => {
         reject(
           new Error(

@@ -1,0 +1,1450 @@
+﻿diff --git a/bun.lock b/bun.lock
+index 5524a05..0c7bccf 100644
+--- a/bun.lock
++++ b/bun.lock
+@@ -15,11 +15,9 @@
+         "ai": "^7.0.30",
+         "clsx": "^2.1.1",
+         "dotenv": "^17.4.2",
+-        "edge-tts-universal": "^1.4.0",
+         "ffmpeg-static": "^5.3.0",
+         "fluent-ffmpeg": "^2.1.3",
+         "framer-motion": "^12.42.2",
+-        "google-tts-api": "^2.0.2",
+         "googleapis": "^173.0.0",
+         "lucide-react": "^1.24.0",
+         "next": "16.2.10",
+@@ -393,7 +391,7 @@
+ 
+     "acorn-jsx": ["acorn-jsx@5.3.2", "", { "peerDependencies": { "acorn": "^6.0.0 || ^7.0.0 || ^8.0.0" } }, "sha512-rq9s+JNhf0IChjtDXxllJ7g41oZk5SlXtp0LHwyA5cejwn7vKmKp4pPri6YEePv2PU65sAsegbXtIinmDFDXgQ=="],
+ 
+-    "agent-base": ["agent-base@7.1.4", "", {}, "sha512-MnA+YT8fwfJPgBx3m60MNqakm30XOkyIoH1y6huTQvC0PwZG7ki8NacLBcrPbNoo8vEZy7Jpuk7+jMO+CUovTQ=="],
++    "agent-base": ["agent-base@6.0.2", "", { "dependencies": { "debug": "4" } }, "sha512-RZNwNclF7+MS/8bDg70amg32dyeZGZxiDuQmZxKLAlQjr3jGyLx+4Kkk58UO7D2QdgFIQCovuSuZESne6RG6XQ=="],
+ 
+     "ai": ["ai@7.0.30", "", { "dependencies": { "@ai-sdk/gateway": "4.0.22", "@ai-sdk/provider": "4.0.3", "@ai-sdk/provider-utils": "5.0.10" }, "peerDependencies": { "zod": "^3.25.76 || ^4.1.8" } }, "sha512-tm0gTAHSWBdDfW4P2mj+LlglGCUQTSA9ktyS2PsPgVhxNO9gYWTSnRAehiJ3h1lYsJBp1Zgbz3RH2lezJXagiw=="],
+ 
+@@ -429,14 +427,10 @@
+ 
+     "async-function": ["async-function@1.0.0", "", {}, "sha512-hsU18Ae8CDTR6Kgu9DYf0EbCr/a5iGL0rytQDobUcdpYOKokk8LEjVphnXkDkgpi0wYVsqrXuP0bZxJaTqdgoA=="],
+ 
+-    "asynckit": ["asynckit@0.4.0", "", {}, "sha512-Oei9OH4tRh0YqU3GxhX79dM/mwVgvbZJaSNaRk+bshkj0S5cfHcgYakreBjrHwatXKbz+IoIdYLxrKim2MjW0Q=="],
+-
+     "available-typed-arrays": ["available-typed-arrays@1.0.7", "", { "dependencies": { "possible-typed-array-names": "^1.0.0" } }, "sha512-wvUjBtSGN7+7SjNpq/9M2Tg350UZD3q62IFZLbRAR1bSMlCo1ZaeW+BJ+D090e4hIIZLBcTDWe4Mh4jvUDajzQ=="],
+ 
+     "axe-core": ["axe-core@4.12.1", "", {}, "sha512-s7iGf5GaVMxEG0ENN9x+xTr7GFZCb1ZP/1uATUpCEK2X78nDB3RwbtFCo9pGAf9ru+VwoQ464DkaLEeRM08wJA=="],
+ 
+-    "axios": ["axios@1.18.1", "", { "dependencies": { "follow-redirects": "^1.16.0", "form-data": "^4.0.5", "https-proxy-agent": "^5.0.1", "proxy-from-env": "^2.1.0" } }, "sha512-3nTvFlvpn9Zu/RkHUqtc7/+al4UpRW5az71ap5zccp6e8RAYEzhMTecX8Dz1wWDYrPpUoB1HAQEGEAEvUr7S9g=="],
+-
+     "axobject-query": ["axobject-query@4.1.0", "", {}, "sha512-qIj0G9wZbMGNLjLmg1PT6v2mE9AH2zlnADJD/2tC6E00hgmhUOfEB6greHPAfLRSufHqROIUTkw6E+M3lH0PTQ=="],
+ 
+     "balanced-match": ["balanced-match@1.0.2", "", {}, "sha512-3oSeUO0TMV67hN1AmbXsK4yaqU7tjiHlbxRDZOpH0KW9+CeX4bRAaX0Anxt0tx2MrpRpWwQaPwIlISEJhYU5Pw=="],
+@@ -479,8 +473,6 @@
+ 
+     "color-name": ["color-name@1.1.4", "", {}, "sha512-dOy+3AuW3a2wNbZHIuMZpTcgjGuLU/uBL/ubcZF9OXbDo8ff4O8yVp5Bf0efS8uEoYo5q4Fx7dY9OgQGXgAsQA=="],
+ 
+-    "combined-stream": ["combined-stream@1.0.8", "", { "dependencies": { "delayed-stream": "~1.0.0" } }, "sha512-FQN4MRfuJeHf7cBbBMJFXhKSDq+2kAArBlmRBvcvFE5BB1HZKXtSFASDhdlz9zOYwxh8lDdnvmMOe/+5cdoEdg=="],
+-
+     "concat-map": ["concat-map@0.0.1", "", {}, "sha512-/Srv4dswyQNBfohGpz9o6Yb3Gz3SrUDqBH5rTuhGR7ahtlbYKnVxw2bCFMRljaA7EXHaXZ8wsHdodFvbkhKmqg=="],
+ 
+     "concat-stream": ["concat-stream@2.0.0", "", { "dependencies": { "buffer-from": "^1.0.0", "inherits": "^2.0.3", "readable-stream": "^3.0.2", "typedarray": "^0.0.6" } }, "sha512-MWufYdFw53ccGjCA+Ol7XJYpAlW6/prSMzuPOTRnJGcGzuhLn4Scrz7qf6o8bROZ514ltazcIFJZevcfbo0x7A=="],
+@@ -489,8 +481,6 @@
+ 
+     "cookie": ["cookie@1.1.1", "", {}, "sha512-ei8Aos7ja0weRpFzJnEA9UHJ/7XQmqglbRwnf2ATjcB9Wq874VKH9kfjjirM6UhU2/E5fFYadylyhFldcqSidQ=="],
+ 
+-    "cross-fetch": ["cross-fetch@4.1.0", "", { "dependencies": { "node-fetch": "^2.7.0" } }, "sha512-uKm5PU+MHTootlWEY+mZ4vvXoCn4fLQxT9dSc1sXVMSFkINTJVN8cAQROpwcKm8bJ/c7rgZVIBWzH5T78sNZZw=="],
+-
+     "cross-spawn": ["cross-spawn@7.0.6", "", { "dependencies": { "path-key": "^3.1.0", "shebang-command": "^2.0.0", "which": "^2.0.1" } }, "sha512-uV2QOWP2nWzsy2aMp8aRibhi9dlzF5Hgh5SHaB9OiTGEyDTiJJyx0uy51QXdyWbtAHNua4XJzUKca3OzKUd3vA=="],
+ 
+     "csstype": ["csstype@3.2.3", "", {}, "sha512-z1HGKcYy2xA8AGQfwrn0PAy+PB7X/GSj3UVJW9qKyn43xWa+gl5nXmU4qqLMRzWVLFC8KusUX8T/0kCiOYpAIQ=="],
+@@ -513,8 +503,6 @@
+ 
+     "define-properties": ["define-properties@1.2.1", "", { "dependencies": { "define-data-property": "^1.0.1", "has-property-descriptors": "^1.0.0", "object-keys": "^1.1.1" } }, "sha512-8QmQKqEASLd5nx0U1B1okLElbUuuttJ/AnYmRXbbbGDWh6uS208EjD4Xqq/I9wK7u0v6O08XhTWnt5XtEbR6Dg=="],
+ 
+-    "delayed-stream": ["delayed-stream@1.0.0", "", {}, "sha512-ZySD7Nf91aLB0RxL4KGrKHBXl7Eds1DAmEdcoVawXnLD7SDhpNgtuII2aAkg7a7QS41jxPSZ17p4VdGnMHk3MQ=="],
+-
+     "dequal": ["dequal@2.0.3", "", {}, "sha512-0je+qPKHEMohvfRTCEo3CrPG6cAzAYgmzKyxRiYSSDkS6eGJdyVJm7WaYA5ECaAD9wLB2T4EEeymA5aFVcYXCA=="],
+ 
+     "detect-libc": ["detect-libc@2.1.2", "", {}, "sha512-Btj2BOOO83o3WyH59e8MgXsxEQVcarkUOpEYrubB0urwnN10yQ364rsiByU11nZlqWYZm05i/of7io4mzihBtQ=="],
+@@ -529,8 +517,6 @@
+ 
+     "ecdsa-sig-formatter": ["ecdsa-sig-formatter@1.0.11", "", { "dependencies": { "safe-buffer": "^5.0.1" } }, "sha512-nagl3RYrbNv6kQkeJIpt6NJZy8twLB/2vtz6yN9Z4vRKHN4/QZJIEbqohALSgwKdnksuY3k5Addp5lg8sVoVcQ=="],
+ 
+-    "edge-tts-universal": ["edge-tts-universal@1.4.0", "", { "dependencies": { "axios": "^1.12.1", "cross-fetch": "^4.1.0", "https-proxy-agent": "^7.0.6", "isomorphic-ws": "^5.0.0", "uuid": "^11.1.0", "ws": "^8.18.3", "xml-escape": "^1.1.0" } }, "sha512-53Zk6UH3+3g844APjuhtHb2KTTdRLY6fZtEZsSIF3Kz3tYEpsjwQedCtaz8qTaxYdqFOMoFyCGNOHm2PxuX2Jw=="],
+-
+     "electron-to-chromium": ["electron-to-chromium@1.5.392", "", {}, "sha512-1yQq3VQCZRwsnYc67Oc+1fge6Lwtn0hzi6zmEVkB61Zx21kTbwJAW4dFLadl5Rc1tKhG/kSpYXnfiAhu0f0a1g=="],
+ 
+     "emoji-regex": ["emoji-regex@9.2.2", "", {}, "sha512-L18DaJsXSUk2+42pv8mLs5jJT2hqFkFE4j21wOmgbUqsZ2hL72NsUU785g9RXgo3s0ZNgVl42TiHp3ZtOv/Vyg=="],
+@@ -625,14 +611,10 @@
+ 
+     "fluent-ffmpeg": ["fluent-ffmpeg@2.1.3", "", { "dependencies": { "async": "^0.2.9", "which": "^1.1.1" } }, "sha512-Be3narBNt2s6bsaqP6Jzq91heDgOEaDCJAXcE3qcma/EJBSy5FB4cvO31XBInuAuKBx8Kptf8dkhjK0IOru39Q=="],
+ 
+-    "follow-redirects": ["follow-redirects@1.16.0", "", { "peerDependencies": { "debug": "*" }, "optionalPeers": ["debug"] }, "sha512-y5rN/uOsadFT/JfYwhxRS5R7Qce+g3zG97+JrtFZlC9klX/W5hD7iiLzScI4nZqUS7DNUdhPgw4xI8W2LuXlUw=="],
+-
+     "for-each": ["for-each@0.3.5", "", { "dependencies": { "is-callable": "^1.2.7" } }, "sha512-dKx12eRCVIzqCxFGplyFKJMPvLEWgmNtUrpTiJIR5u97zEhRG8ySrtboPHZXx7daLxQVrl643cTzbab2tkQjxg=="],
+ 
+     "foreground-child": ["foreground-child@3.3.1", "", { "dependencies": { "cross-spawn": "^7.0.6", "signal-exit": "^4.0.1" } }, "sha512-gIXjKqtFuWEgzFRJA9WCQeSJLZDjgJUOMCMzxtvFq/37KojM1BFGufqsCy0r4qSQmYLsZYMeyRqzIWOMup03sw=="],
+ 
+-    "form-data": ["form-data@4.0.6", "", { "dependencies": { "asynckit": "^0.4.0", "combined-stream": "^1.0.8", "es-set-tostringtag": "^2.1.0", "hasown": "^2.0.4", "mime-types": "^2.1.35" } }, "sha512-vKatAh4SlVfgbv+YtmhiRjhEMJsYpsG1Y2rMQtR+SVSbytsSD1YGzDIcrAJmdFec88u/+VoGmxnl+80gL1tRCQ=="],
+-
+     "formdata-polyfill": ["formdata-polyfill@4.0.10", "", { "dependencies": { "fetch-blob": "^3.1.2" } }, "sha512-buewHzMvYL29jdeQTVILecSaZKnt/RJWjoZCF5OW60Z67/GmSLBkOFM7qh1PI3zFNtJbaZL5eQu1vLfazOwj4g=="],
+ 
+     "framer-motion": ["framer-motion@12.42.2", "", { "dependencies": { "motion-dom": "^12.42.2", "motion-utils": "^12.39.0", "tslib": "^2.4.0" }, "peerDependencies": { "@emotion/is-prop-valid": "*", "react": "^18.0.0 || ^19.0.0", "react-dom": "^18.0.0 || ^19.0.0" }, "optionalPeers": ["@emotion/is-prop-valid", "react", "react-dom"] }, "sha512-5XY9luDiu0oHfHBjpDthFMh0ES+122w6p/papSJBweMkO8Sn+PW2QaEgRblQBpWFnuvZS5qvarpt/hO2pjGmnw=="],
+@@ -671,8 +653,6 @@
+ 
+     "google-logging-utils": ["google-logging-utils@1.1.3", "", {}, "sha512-eAmLkjDjAFCVXg7A1unxHsLf961m6y17QFqXqAXGj/gVkKFrEICfStRfwUlGNfeCEjNRa32JEWOUTlYXPyyKvA=="],
+ 
+-    "google-tts-api": ["google-tts-api@2.0.2", "", { "dependencies": { "axios": "^0.21.0" } }, "sha512-MkQYbBJEdom8hJpfEVDfD3tpBtkz0X59C+FNsoRhbnCiFjZRnzyurGQ5OrAr3xkigII56/jmk0JNwZsp450G+Q=="],
+-
+     "googleapis": ["googleapis@173.0.0", "", { "dependencies": { "google-auth-library": "^10.2.0", "googleapis-common": "^8.0.0" } }, "sha512-xEJJYLZ4qeenVyfzispNfRjCe9bsv7CzBv5zYFLvScOze9snJ8S9W6hjQ729CWPQt5mvn/JrcRaCHzQiukt0ng=="],
+ 
+     "googleapis-common": ["googleapis-common@8.0.2", "", { "dependencies": { "extend": "^3.0.2", "gaxios": "7.1.3", "google-auth-library": "10.5.0", "google-logging-utils": "1.1.3", "qs": "^6.7.0", "url-template": "^2.0.8" } }, "sha512-5MXeQzIZaqCH7B+HJWqhQm946VARpZep6acbWSr/fcgF2cQANq7allgX+i/G0EqF0WyUxB277gtWMzRYHMl9tg=="],
+@@ -703,7 +683,7 @@
+ 
+     "http-response-object": ["http-response-object@3.0.2", "", { "dependencies": { "@types/node": "^10.0.3" } }, "sha512-bqX0XTF6fnXSQcEJ2Iuyr75yVakyjIDCqroJQ/aHfSdlM743Cwqoi2nDYMzLGWUcuTWGWy8AAvOKXTfiv6q9RA=="],
+ 
+-    "https-proxy-agent": ["https-proxy-agent@7.0.6", "", { "dependencies": { "agent-base": "^7.1.2", "debug": "4" } }, "sha512-vK9P5/iUfdl95AI+JVyUuIcVtd4ofvtrOr3HNtM2yxC9bnMbEdp3x01OhQNnjb8IJYi38VlTE3mBXwcfvywuSw=="],
++    "https-proxy-agent": ["https-proxy-agent@5.0.1", "", { "dependencies": { "agent-base": "6", "debug": "4" } }, "sha512-dFcAjpTQFgoLMzC2VwU+C/CbS7uRL0lWmxDITmqm7C+7F0Odmj6s9l6alZc6AELXhrnggM2CeWSXHGOdX2YtwA=="],
+ 
+     "iceberg-js": ["iceberg-js@0.8.1", "", {}, "sha512-1dhVQZXhcHje7798IVM+xoo/1ZdVfzOMIc8/rgVSijRK38EDqOJoGula9N/8ZI5RD8QTxNQtK/Gozpr+qUqRRA=="],
+ 
+@@ -777,8 +757,6 @@
+ 
+     "isexe": ["isexe@2.0.0", "", {}, "sha512-RHxMLp9lnKHGHRng9QFhRCMbYAcVpn69smSGcq3f36xjgVVWThj4qqLbTLlq7Ssj8B+fIQ1EuCEGI2lKsyQeIw=="],
+ 
+-    "isomorphic-ws": ["isomorphic-ws@5.0.0", "", { "peerDependencies": { "ws": "*" } }, "sha512-muId7Zzn9ywDsyXgTIafTry2sV3nySZeUDe6YedVd1Hvuuep5AsIlqK+XefWpYTyJG5e503F2xIuT2lcU6rCSw=="],
+-
+     "iterator.prototype": ["iterator.prototype@1.1.5", "", { "dependencies": { "define-data-property": "^1.1.4", "es-object-atoms": "^1.0.0", "get-intrinsic": "^1.2.6", "get-proto": "^1.0.0", "has-symbols": "^1.1.0", "set-function-name": "^2.0.2" } }, "sha512-H0dkQoCa3b2VEeKQBOxFph+JAbcrQdE7KC0UkqwpLmv2EC4P41QXP+rqo9wYodACiG5/WM5s9oDApTU8utwj9g=="],
+ 
+     "jackspeak": ["jackspeak@3.4.3", "", { "dependencies": { "@isaacs/cliui": "^8.0.2" }, "optionalDependencies": { "@pkgjs/parseargs": "^0.11.0" } }, "sha512-OGlZQpz2yfahA/Rd1Y8Cd9SIEsqvXkLVoSw/cgwhnhFMDbsQFeZYoJJ7bIZBS9BcamUW96asq/npPWugM+RQBw=="],
+@@ -861,10 +839,6 @@
+ 
+     "micromatch": ["micromatch@4.0.8", "", { "dependencies": { "braces": "^3.0.3", "picomatch": "^2.3.1" } }, "sha512-PXwfBhYu0hBCPw8Dn0E+WDYb7af3dSLVWKi3HGv84IdF4TyFoC0ysxFd0Goxw7nSv4T/PzEJQxsYsEiFCKo2BA=="],
+ 
+-    "mime-db": ["mime-db@1.52.0", "", {}, "sha512-sPU4uV7dYlvtWJxwwxHD0PuihVNiE7TyAbQ5SWxDCB9mUYvOgroQOwYQQOKPJ8CIbE+1ETVlOoK1UC2nU3gYvg=="],
+-
+-    "mime-types": ["mime-types@2.1.35", "", { "dependencies": { "mime-db": "1.52.0" } }, "sha512-ZDY+bPm5zTTF+YpCrAU9nK0UgICYPT0QtT1NZWFv4s++TNkcgVaT0g6+4R2uI4MjQjzysHB1zxuWL50hzaeXiw=="],
+-
+     "minimatch": ["minimatch@3.1.5", "", { "dependencies": { "brace-expansion": "^1.1.7" } }, "sha512-VgjWUsnnT6n+NUk6eZq77zeFdpW2LWDzP6zFGrCbHXiYNul5Dzqk2HHQ5uFH2DNW5Xbp8+jVzaeNt94ssEEl4w=="],
+ 
+     "minimist": ["minimist@1.2.8", "", {}, "sha512-2yyAR8qBkN3YuheJanUpWC5U3bb5osDywNB8RzDVlDwDHbocAJveqqj1u8+SVD7jkWT4yvsHCpWqqWqAxb0zCA=="],
+@@ -889,7 +863,7 @@
+ 
+     "node-exports-info": ["node-exports-info@1.6.2", "", { "dependencies": { "array.prototype.flatmap": "^1.3.3", "es-errors": "^1.3.0", "object.entries": "^1.1.9", "semver": "^6.3.1" } }, "sha512-kXs9Go0cah0qHVV2v389IXQLdLCeE1xfFtjOAF+iobu0OIoG1pje8At2vMHyaPMiPMnG/LWP50twML21eMcAag=="],
+ 
+-    "node-fetch": ["node-fetch@2.7.0", "", { "dependencies": { "whatwg-url": "^5.0.0" }, "peerDependencies": { "encoding": "^0.1.0" }, "optionalPeers": ["encoding"] }, "sha512-c4FRfUm/dbcWZ7U+1Wq0AwCyFL+3nt2bEw05wfxSz+DWpWsitgmSgYmy2dQdWyKC1694ELPqMs/YzUSNozLt8A=="],
++    "node-fetch": ["node-fetch@3.3.2", "", { "dependencies": { "data-uri-to-buffer": "^4.0.0", "fetch-blob": "^3.1.4", "formdata-polyfill": "^4.0.10" } }, "sha512-dRB78srN/l6gqWulah9SrxeYnxeddIG30+GOqK/9OlLVyLg3HPnr6SqOWTWOXKRwC2eGYCkZ59NNuSgvSrpgOA=="],
+ 
+     "node-releases": ["node-releases@2.0.51", "", {}, "sha512-wRNIrw4DmVLKQlbgOMdkMx27Wrpzes2hh5Jtbi2bjPd+4wJstWIqP5A+lscnqbm0xxmT5Bpg8Lec5ItEBwx6BQ=="],
+ 
+@@ -975,8 +949,6 @@
+ 
+     "protobufjs": ["protobufjs@7.6.5", "", { "dependencies": { "@protobufjs/aspromise": "^1.1.2", "@protobufjs/base64": "^1.1.2", "@protobufjs/codegen": "^2.0.5", "@protobufjs/eventemitter": "^1.1.1", "@protobufjs/fetch": "^1.1.1", "@protobufjs/float": "^1.0.2", "@protobufjs/path": "^1.1.2", "@protobufjs/pool": "^1.1.0", "@protobufjs/utf8": "^1.1.1", "@types/node": ">=13.7.0", "long": "^5.3.2" } }, "sha512-/FPD0nUc9jH6rfFjji9IBqOz4pcSE3CsT1m7Ep6Mdb0LxSUMj8hgl6GomOvZzpNpAqqGaXA0P3VSrZLFzIhQrw=="],
+ 
+-    "proxy-from-env": ["proxy-from-env@2.1.0", "", {}, "sha512-cJ+oHTW1VAEa8cJslgmUZrc+sjRKgAKl3Zyse6+PV38hZe/V6Z14TbCuXcan9F9ghlz4QrFr2c92TNF82UkYHA=="],
+-
+     "punycode": ["punycode@2.3.1", "", {}, "sha512-vYt7UD1U9Wg6138shLtLOvdAu+8DsC/ilFtEVHcH+wydcSpNE20AfSOduf6MkRFahL5FY7X1oU7nKVZFtfq8Fg=="],
+ 
+     "qs": ["qs@6.15.3", "", { "dependencies": { "es-define-property": "^1.0.1", "side-channel": "^1.1.1" } }, "sha512-O9gl3zCl5h5blw1KGUzQKhA5oUXSl8rwUIM5o0S3nCXMliSvy5Dzx7/DJcI+SwgICv+IneSZwhBh1oSyEHA71A=="],
+@@ -1097,8 +1069,6 @@
+ 
+     "to-regex-range": ["to-regex-range@5.0.1", "", { "dependencies": { "is-number": "^7.0.0" } }, "sha512-65P7iz6X5yEr1cwcgvQxbbIw7Uk3gOy5dIdtZ4rDveLqhrdJP+Li/Hx6tyK0NEb+2GCyneCMJiGqrADCSNk8sQ=="],
+ 
+-    "tr46": ["tr46@0.0.3", "", {}, "sha512-N3WMsuqV66lT30CrXNbEjx4GEwlow3v6rr4mCcv6prnfwhS01rkgyFdjPNBYd9br7LpXV1+Emh01fHnq2Gdgrw=="],
+-
+     "ts-api-utils": ["ts-api-utils@2.5.0", "", { "peerDependencies": { "typescript": ">=4.8.4" } }, "sha512-OJ/ibxhPlqrMM0UiNHJ/0CKQkoKF243/AEmplt3qpRgkW8VG7IfOS41h7V8TjITqdByHzrjcS/2si+y4lIh8NA=="],
+ 
+     "tsconfig-paths": ["tsconfig-paths@3.15.0", "", { "dependencies": { "@types/json5": "^0.0.29", "json5": "^1.0.2", "minimist": "^1.2.6", "strip-bom": "^3.0.0" } }, "sha512-2Ac2RgzDe/cn48GvOe3M+o82pEFewD3UPbyoUHHdKasHwJKjds4fLXWf/Ux5kATBKN20oaFGu+jbElp1pos0mg=="],
+@@ -1137,14 +1107,8 @@
+ 
+     "util-deprecate": ["util-deprecate@1.0.2", "", {}, "sha512-EPD5q1uXyFxJpCrLnCc1nHnq3gOa6DZBocAIiI2TaSCA7VCJ1UJDMagCzIkXNsUYfD1daK//LTEQ8xiIbrHtcw=="],
+ 
+-    "uuid": ["uuid@11.1.1", "", { "bin": { "uuid": "dist/esm/bin/uuid" } }, "sha512-vIYxrBCC/N/K+Js3qSN88go7kIfNPssr/hHCesKCQNAjmgvYS2oqr69kIufEG+O4+PfezOH4EbIeHCfFov8ZgQ=="],
+-
+     "web-streams-polyfill": ["web-streams-polyfill@3.3.3", "", {}, "sha512-d2JWLCivmZYTSIoge9MsgFCZrt571BikcWGYkjC1khllbTeDlGqZ2D8vD8E/lJa8WGWbb7Plm8/XJYV7IJHZZw=="],
+ 
+-    "webidl-conversions": ["webidl-conversions@3.0.1", "", {}, "sha512-2JAn3z8AR6rjK8Sm8orRC0h/bcl/DqL7tRPdGZ4I1CjdF+EaMLmYxBHyXuKL849eucPFhvBoxMsflfOb8kxaeQ=="],
+-
+-    "whatwg-url": ["whatwg-url@5.0.0", "", { "dependencies": { "tr46": "~0.0.3", "webidl-conversions": "^3.0.0" } }, "sha512-saE57nupxk6v3HY35+jzBwYa0rKSy0XR8JSxZPwgLr7ys0IBzhGviA1/TUGJLmSVqs8pb9AnvICXEuOHLprYTw=="],
+-
+     "which": ["which@1.3.1", "", { "dependencies": { "isexe": "^2.0.0" }, "bin": { "which": "./bin/which" } }, "sha512-HxJdYWq1MTIQbJ3nw0cqssHoTNU267KlrDuGZ1WYlxDStUtKUhOaJmh112/TZmHxxUfuJqPXSOm7tDyas0OSIQ=="],
+ 
+     "which-boxed-primitive": ["which-boxed-primitive@1.1.1", "", { "dependencies": { "is-bigint": "^1.1.0", "is-boolean-object": "^1.2.1", "is-number-object": "^1.1.1", "is-string": "^1.1.1", "is-symbol": "^1.1.1" } }, "sha512-TbX3mj8n0odCBFVlY8AxkqcHASw3L60jIuF8jFP78az3C2YhmGvqbHBpAjTRH2/xqYunrJ9g1jSyjCjpoWzIAA=="],
+@@ -1163,8 +1127,6 @@
+ 
+     "ws": ["ws@8.21.1", "", { "peerDependencies": { "bufferutil": "^4.0.1", "utf-8-validate": ">=5.0.2" }, "optionalPeers": ["bufferutil", "utf-8-validate"] }, "sha512-+0NTnW77fFN/DjQi6k/Sq/Yvk4Sgajw7urW8V+asjXnRgDs9gyGkdb7EzgfhA4goXsRIZKE28fzIXBHEzhuiWw=="],
+ 
+-    "xml-escape": ["xml-escape@1.1.0", "", {}, "sha512-B/T4sDK8Z6aUh/qNr7mjKAwwncIljFuUP+DO/D5hloYFj+90O88z8Wf7oSucZTHxBAsC1/CTP4rtx/x1Uf72Mg=="],
+-
+     "xtend": ["xtend@4.0.2", "", {}, "sha512-LKYU1iAXJXUgAXn9URjiu+MWhyUXHsvfp7mcuYm9dSUKK0/CjtrUwFAxD82/mCWbtLsGjFIad0wIsod4zrTAEQ=="],
+ 
+     "yallist": ["yallist@3.1.1", "", {}, "sha512-a4UGQaWPH59mOXUYnAG2ewncQS4i4F43Tv3JoAM+s2VDAmS9NsK8GpDMLrCHPksFT7h3K6TOoUNn2pb7RoXx4g=="],
+@@ -1203,8 +1165,6 @@
+ 
+     "@unrs/resolver-binding-wasm32-wasi/@emnapi/runtime": ["@emnapi/runtime@1.10.0", "", { "dependencies": { "tslib": "^2.4.0" } }, "sha512-ewvYlk86xUoGI0zQRNq/mC+16R1QeDlKQy21Ki3oSYXNgLb45GV1P6A0M+/s6nyCuNDqe5VpaY84BzXGwVbwFA=="],
+ 
+-    "axios/https-proxy-agent": ["https-proxy-agent@5.0.1", "", { "dependencies": { "agent-base": "6", "debug": "4" } }, "sha512-dFcAjpTQFgoLMzC2VwU+C/CbS7uRL0lWmxDITmqm7C+7F0Odmj6s9l6alZc6AELXhrnggM2CeWSXHGOdX2YtwA=="],
+-
+     "cross-spawn/which": ["which@2.0.2", "", { "dependencies": { "isexe": "^2.0.0" }, "bin": { "node-which": "./bin/node-which" } }, "sha512-BLI3Tl1TW3Pvl70l3yq3Y64i+awpwXqsGBYWkkqMtnbXgrMD+yj7rhW0kuEDxzJaYXGjEW5ogapKNMEKNMjibA=="],
+ 
+     "eslint-import-resolver-node/debug": ["debug@3.2.7", "", { "dependencies": { "ms": "^2.1.1" } }, "sha512-CFjzYYAi4ThfiQvizrFQevTTXHtnCqWfe7x1AhgEscTz6ZbLbfoLRLPugTQyBth6f8ZERVUSyWHFD/7Wu4t1XQ=="],
+@@ -1215,14 +1175,10 @@
+ 
+     "fast-glob/glob-parent": ["glob-parent@5.1.2", "", { "dependencies": { "is-glob": "^4.0.1" } }, "sha512-AOIgSQCepiJYwP3ARnGx+5VnTu2HBYdzbGP45eLw1vr3zB3vZLeyed1sC9hnbcOc9/SrMyM5RPQrkGz4aS9Zow=="],
+ 
+-    "ffmpeg-static/https-proxy-agent": ["https-proxy-agent@5.0.1", "", { "dependencies": { "agent-base": "6", "debug": "4" } }, "sha512-dFcAjpTQFgoLMzC2VwU+C/CbS7uRL0lWmxDITmqm7C+7F0Odmj6s9l6alZc6AELXhrnggM2CeWSXHGOdX2YtwA=="],
+-
+-    "gaxios/node-fetch": ["node-fetch@3.3.2", "", { "dependencies": { "data-uri-to-buffer": "^4.0.0", "fetch-blob": "^3.1.4", "formdata-polyfill": "^4.0.10" } }, "sha512-dRB78srN/l6gqWulah9SrxeYnxeddIG30+GOqK/9OlLVyLg3HPnr6SqOWTWOXKRwC2eGYCkZ59NNuSgvSrpgOA=="],
++    "gaxios/https-proxy-agent": ["https-proxy-agent@7.0.6", "", { "dependencies": { "agent-base": "^7.1.2", "debug": "4" } }, "sha512-vK9P5/iUfdl95AI+JVyUuIcVtd4ofvtrOr3HNtM2yxC9bnMbEdp3x01OhQNnjb8IJYi38VlTE3mBXwcfvywuSw=="],
+ 
+     "glob/minimatch": ["minimatch@9.0.9", "", { "dependencies": { "brace-expansion": "^2.0.2" } }, "sha512-OBwBN9AL4dqmETlpS2zasx+vTeWclWzkblfZk7KTA5j3jeOONz/tRCnZomUyvNg83wL5Zv9Ss6HMJXAgL8R2Yg=="],
+ 
+-    "google-tts-api/axios": ["axios@0.21.4", "", { "dependencies": { "follow-redirects": "^1.14.0" } }, "sha512-ut5vewkiu8jjGBdqpM44XxjuCjq9LAKeHVmoVfHVzy8eHgxxq8SbAVQNovDA8mVi05kP0Ea/n/UzcSHcTJQfNg=="],
+-
+     "googleapis-common/gaxios": ["gaxios@7.1.3", "", { "dependencies": { "extend": "^3.0.2", "https-proxy-agent": "^7.0.1", "node-fetch": "^3.3.2", "rimraf": "^5.0.1" } }, "sha512-YGGyuEdVIjqxkxVH1pUTMY/XtmmsApXrCVv5EU25iX6inEPbV+VakJfLealkBtJN69AQmh1eGOdCl9Sm1UP6XQ=="],
+ 
+     "googleapis-common/google-auth-library": ["google-auth-library@10.5.0", "", { "dependencies": { "base64-js": "^1.3.0", "ecdsa-sig-formatter": "^1.0.11", "gaxios": "^7.0.0", "gcp-metadata": "^8.0.0", "google-logging-utils": "^1.0.0", "gtoken": "^8.0.0", "jws": "^4.0.0" } }, "sha512-7ABviyMOlX5hIVD60YOfHw4/CxOfBhyduaYB+wbFWCWoni4N7SLcV46hrVRktuBbZjFC9ONyqamZITN7q3n32w=="],
+@@ -1253,13 +1209,11 @@
+ 
+     "@typescript-eslint/typescript-estree/minimatch/brace-expansion": ["brace-expansion@5.0.7", "", { "dependencies": { "balanced-match": "^4.0.2" } }, "sha512-7oFy703dxfY3/NLxC1fh2SUCQ0H9rmAY+5EpDVfXjUTTs+HEwR2nYaqLv+GWcTsumwxPfiz6CzCNkwXwBUwqCA=="],
+ 
+-    "axios/https-proxy-agent/agent-base": ["agent-base@6.0.2", "", { "dependencies": { "debug": "4" } }, "sha512-RZNwNclF7+MS/8bDg70amg32dyeZGZxiDuQmZxKLAlQjr3jGyLx+4Kkk58UO7D2QdgFIQCovuSuZESne6RG6XQ=="],
+-
+-    "ffmpeg-static/https-proxy-agent/agent-base": ["agent-base@6.0.2", "", { "dependencies": { "debug": "4" } }, "sha512-RZNwNclF7+MS/8bDg70amg32dyeZGZxiDuQmZxKLAlQjr3jGyLx+4Kkk58UO7D2QdgFIQCovuSuZESne6RG6XQ=="],
++    "gaxios/https-proxy-agent/agent-base": ["agent-base@7.1.4", "", {}, "sha512-MnA+YT8fwfJPgBx3m60MNqakm30XOkyIoH1y6huTQvC0PwZG7ki8NacLBcrPbNoo8vEZy7Jpuk7+jMO+CUovTQ=="],
+ 
+     "glob/minimatch/brace-expansion": ["brace-expansion@2.1.2", "", { "dependencies": { "balanced-match": "^1.0.0" } }, "sha512-w5JZcKgdhDOgOwm8H+KgbosopHMuGcl6qbulwjtz3SM7I7P3yW1eAjzMPLrIE+NQ9vjgANKHWeMHnrT0OXW1oA=="],
+ 
+-    "googleapis-common/gaxios/node-fetch": ["node-fetch@3.3.2", "", { "dependencies": { "data-uri-to-buffer": "^4.0.0", "fetch-blob": "^3.1.4", "formdata-polyfill": "^4.0.10" } }, "sha512-dRB78srN/l6gqWulah9SrxeYnxeddIG30+GOqK/9OlLVyLg3HPnr6SqOWTWOXKRwC2eGYCkZ59NNuSgvSrpgOA=="],
++    "googleapis-common/gaxios/https-proxy-agent": ["https-proxy-agent@7.0.6", "", { "dependencies": { "agent-base": "^7.1.2", "debug": "4" } }, "sha512-vK9P5/iUfdl95AI+JVyUuIcVtd4ofvtrOr3HNtM2yxC9bnMbEdp3x01OhQNnjb8IJYi38VlTE3mBXwcfvywuSw=="],
+ 
+     "googleapis-common/google-auth-library/gaxios": ["gaxios@7.2.0", "", { "dependencies": { "extend": "^3.0.2", "https-proxy-agent": "^7.0.1", "node-fetch": "^3.3.2" } }, "sha512-CUVb4wcYe+771XevyH6HtGmXFAGGKkIC3kswAP8Z1JCe0j80JMaTPZH930DWFrvo0atjh18Arc0pEyUCWa5bfg=="],
+ 
+@@ -1271,6 +1225,10 @@
+ 
+     "@typescript-eslint/typescript-estree/minimatch/brace-expansion/balanced-match": ["balanced-match@4.0.4", "", {}, "sha512-BLrgEcRTwX2o6gGxGOCNyMvGSp35YofuYzw9h1IMTRmKqttAZZVU67bdb9Pr2vUHA8+j3i2tJfjO6C6+4myGTA=="],
+ 
+-    "googleapis-common/google-auth-library/gaxios/node-fetch": ["node-fetch@3.3.2", "", { "dependencies": { "data-uri-to-buffer": "^4.0.0", "fetch-blob": "^3.1.4", "formdata-polyfill": "^4.0.10" } }, "sha512-dRB78srN/l6gqWulah9SrxeYnxeddIG30+GOqK/9OlLVyLg3HPnr6SqOWTWOXKRwC2eGYCkZ59NNuSgvSrpgOA=="],
++    "googleapis-common/gaxios/https-proxy-agent/agent-base": ["agent-base@7.1.4", "", {}, "sha512-MnA+YT8fwfJPgBx3m60MNqakm30XOkyIoH1y6huTQvC0PwZG7ki8NacLBcrPbNoo8vEZy7Jpuk7+jMO+CUovTQ=="],
++
++    "googleapis-common/google-auth-library/gaxios/https-proxy-agent": ["https-proxy-agent@7.0.6", "", { "dependencies": { "agent-base": "^7.1.2", "debug": "4" } }, "sha512-vK9P5/iUfdl95AI+JVyUuIcVtd4ofvtrOr3HNtM2yxC9bnMbEdp3x01OhQNnjb8IJYi38VlTE3mBXwcfvywuSw=="],
++
++    "googleapis-common/google-auth-library/gaxios/https-proxy-agent/agent-base": ["agent-base@7.1.4", "", {}, "sha512-MnA+YT8fwfJPgBx3m60MNqakm30XOkyIoH1y6huTQvC0PwZG7ki8NacLBcrPbNoo8vEZy7Jpuk7+jMO+CUovTQ=="],
+   }
+ }
+diff --git a/next.config.ts b/next.config.ts
+index bb9b643..2331c04 100644
+--- a/next.config.ts
++++ b/next.config.ts
+@@ -1,6 +1,7 @@
+ import type { NextConfig } from "next";
+ 
+ const nextConfig: NextConfig = {
++  serverExternalPackages: ['fluent-ffmpeg', 'ffmpeg-static'],
+   async headers() {
+     return [
+       {
+diff --git a/package.json b/package.json
+index 0f0e93d..2e0a319 100644
+--- a/package.json
++++ b/package.json
+@@ -19,11 +19,9 @@
+     "ai": "^7.0.30",
+     "clsx": "^2.1.1",
+     "dotenv": "^17.4.2",
+-    "edge-tts-universal": "^1.4.0",
+     "ffmpeg-static": "^5.3.0",
+     "fluent-ffmpeg": "^2.1.3",
+     "framer-motion": "^12.42.2",
+-    "google-tts-api": "^2.0.2",
+     "googleapis": "^173.0.0",
+     "lucide-react": "^1.24.0",
+     "next": "16.2.10",
+diff --git a/src/app/actions/generate.ts b/src/app/actions/generate.ts
+index a21b643..362987f 100644
+--- a/src/app/actions/generate.ts
++++ b/src/app/actions/generate.ts
+@@ -1,35 +1,5 @@
+ 'use server';
+ 
+-/**
+- * End-to-end video generation orchestrator.
+- *
+- * One pass, five stages, all server-side:
+- *
+- *   1. Cloudflare Workers AI  -> the opening still frame (T2I stays on Cloudflare)
+- *   2. ComfyUI / VoxCPM2      -> narration audio
+- *   3. ComfyUI / Whisper      -> .srt for the narration
+- *   4. ComfyUI / ACE-Step     -> background music
+- *   5. ComfyUI / SVD          -> the moving picture, from the still in step 1
+- *   6. FFmpeg (dynamic_editor)-> Ken Burns + sidechain ducking + burned-in subs
+- *
+- * ── VRAM (8GB) ───────────────────────────────────────────────────────────────
+- * Every ComfyUI graph is queued and AWAITED one at a time — never Promise.all.
+- * Each builder in `@/lib/comfyui/workflows` loads exactly one checkpoint, so
+- * awaiting between them lets ComfyUI swap models RAM -> VRAM in turn instead of
+- * holding SVD + ACE-Step + VoxCPM resident together (which will OOM 8GB).
+- *
+- * The order is deliberate: the two custom-node graphs (VoxCPM2, Whisper) run
+- * first because they are the unverified ones and they fail in seconds, before
+- * we commit minutes of GPU time to ACE-Step and SVD.
+- *
+- * ── Files ────────────────────────────────────────────────────────────────────
+- * ComfyUI writes into its OWN output directory, which is not assumed to be
+- * reachable from this process. Every artefact is pulled over HTTP with the
+- * client's /view helper into a per-run temp directory, and FFmpeg reads from
+- * there. The finished mp4 lands in public/generations/final, matching
+- * src/app/api/generate/stitch/route.ts.
+- */
+-
+ import fs from 'fs';
+ import os from 'os';
+ import path from 'path';
+@@ -54,113 +24,47 @@ import {
+   buildNarrationWorkflow,
+   buildTranscriptionWorkflow,
+ } from '@/lib/comfyui/workflows';
+-import { renderDynamicVideo } from '@/lib/ffmpeg/dynamic_editor';
++import { scanAssets } from '@/lib/ffmpeg/probe';
++import { createEditingBlueprint } from '@/lib/google/director';
++import { renderDynamicVideo, stitchBlueprint } from '@/lib/ffmpeg/dynamic_editor';
++import { generateAssFile, type WordTimestamp } from '@/lib/ffmpeg/subtitles';
+ 
+-/** Everything the pipeline needs. `dna` / `visualGuide` are the app's real state shapes. */
+ export interface GenerateContentInput {
+   dna: DNAData;
+   visualGuide: VisualGuideData;
+-  /** Narration script. Composed from the visual guide when omitted. */
+   narrationScript?: string;
+-  /** English T2I prompt for the opening frame. Composed from DNA + guide when omitted. */
+   imagePrompt?: string;
+-  /** ACE-Step style tags, e.g. "cinematic, uplifting, piano". Derived when omitted. */
+   bgmTags?: string;
+ }
+ 
+ export interface GenerateContentResult {
+   success: boolean;
+-  /** User-facing, Bahasa Indonesia. */
+   message: string;
+-  /** Public URL of the finished video, e.g. /generations/final/final_123.mp4 */
+   videoUrl?: string;
+-  /** The narration actually spoken (may be shorter than the input script — see below). */
+   narration?: string;
+-  /** Length of the finished video in seconds. */
+   durationSeconds?: number;
+-  /** Non-fatal problems (e.g. subtitles unavailable). Never silently dropped. */
+   warnings: string[];
+ }
+ 
+-// ─── Duration budget ──────────────────────────────────────────────────────────
+-//
+-// SVD's frame budget, not the script, decides how long the video can be:
+-// `svd.safetensors` produces 14 frames and `svd_xt` 25, and the same `fps` feeds
+-// both the motion conditioning and the container, so the clip is always
+-// frames/fps seconds — a couple of seconds, not thirty.
+-//
+-// dynamic_editor truncates its output to min(video, narration) and warns, and it
+-// is this action's job to stop that from happening. So the video length is
+-// computed first and everything else is fitted to it: the narration script is
+-// budgeted down to a matching word count and the BGM is generated at exactly
+-// that length instead of ACE-Step's 30s default.
+-//
+-// Longer videos need several SVD clips concatenated, which is a bigger change
+-// than this action — see the task report.
+-
+-/**
+- * Frames the configured SVD checkpoint is built for. Every extra frame is bought
+- * duration, so take the 25 when the checkpoint supports it.
+- *
+- * The pairing is the contract `workflows.ts` documents from the checkpoints
+- * themselves — 14 for `svd.safetensors`, 25 for `svd_xt.safetensors` — so it is
+- * derived from the checkpoint name rather than assumed. `video_frames` is a plain
+- * INT widget, so ComfyUI will not reject 25 on the 14-frame checkpoint; it simply
+- * produces a worse clip, which is why this is not defaulted to 25 blindly.
+- * `COMFYUI_SVD_VIDEO_FRAMES` overrides for checkpoints named something else.
+- */
+ function resolveVideoFrames(): number {
+   const override = Math.trunc(Number(process.env.COMFYUI_SVD_VIDEO_FRAMES));
+   if (Number.isFinite(override) && override > 0) return override;
+ 
+   const checkpoint = (process.env.COMFYUI_SVD_CHECKPOINT ?? DEFAULT_SVD_CHECKPOINT).trim();
+   const stem = checkpoint.split(/[\\/]/).pop()?.replace(/\.[^.]+$/, '') ?? '';
+-  // Matches svd_xt, svd_xt_1_1, svd-xt … without matching e.g. svd_next.
+   return /(^|[_\-.])xt([_\-.]|$)/i.test(stem) ? 25 : 14;
+ }
+ 
+-/** Frames SVD will produce. Must match the checkpoint: 14 = svd, 25 = svd_xt. */
+ const SVD_VIDEO_FRAMES = resolveVideoFrames();
+-/**
+- * Playback + conditioning frame rate for SVD. The builder feeds this to both
+- * `SVD_img2vid_Conditioning` and `CreateVideo`, so it also divides the clip
+- * length — 6 is the low end of SVD's conditioning range and therefore the
+- * longest clip the frame budget can buy.
+- */
+ const SVD_FPS = 6;
+-/**
+- * Portrait 9:16, so the SVD frame matches the 1080x1920 render target.
+- *
+- * This is a tradeoff, not a free win: SVD is trained at 1024x576 landscape, so
+- * 576x1024 is off-distribution and typically gives weaker, less coherent motion.
+- * It is still the right call here because the alternative is generating landscape
+- * and letting `dynamic_editor` crop ~44% of the frame width away — that discards
+- * the subject as often as not, and the Ken Burns push then works on what little
+- * survives. Weaker motion over the right subject beats good motion over a
+- * mis-framed one. Revisit if a portrait-tuned SVD checkpoint is installed.
+- */
+ const SVD_WIDTH = 576;
+ const SVD_HEIGHT = 1024;
+-
+-/**
+- * ASSUMPTION, NOT A MEASUREMENT. Bahasa Indonesia speaking rate used to predict
+- * how long a script will take VoxCPM2 to read. 2.5 is the rate the existing AI
+- * Director route already assumes (`Math.round(targetDuration * 2.5)` in
+- * src/app/api/generate/director/route.ts); nobody has measured VoxCPM2's actual
+- * pace, and there is no ffprobe in this project to measure the rendered audio.
+- *
+- * It is the only thing standing between a full narration and `dynamic_editor`'s
+- * `-shortest`, so every run reports it as an assumption in `warnings` — an
+- * operator should learn the estimate is shakier than it looks here, not from a
+- * truncation warning buried in the render log.
+- */
+ const WORDS_PER_SECOND = 2.5;
+ 
+ function videoDurationSeconds(): number {
+   return SVD_VIDEO_FRAMES / SVD_FPS;
+ }
+ 
+-/** Sentences, keeping their terminator; a trailing fragment counts as one. */
+ function splitSentences(script: string): string[] {
+   return (script.match(/[^.!?…]+[.!?…]+|[^.!?…]+$/g) ?? [])
+     .map((sentence) => sentence.trim())
+@@ -171,12 +75,6 @@ function countWords(text: string): number {
+   return text.split(/\s+/).filter(Boolean).length;
+ }
+ 
+-/**
+- * Cuts the script down to what fits `seconds` of speech, preferring the last
+- * complete sentence that fits. A mid-sentence guillotine reads as a broken clip;
+- * a short but finished sentence at least reads as deliberate. Falls back to a
+- * hard word slice only when even the first sentence overruns the budget.
+- */
+ function budgetNarration(script: string, seconds: number): { text: string; droppedWords: number } {
+   const trimmed = script.trim();
+   const totalWords = countWords(trimmed);
+@@ -201,8 +99,6 @@ function budgetNarration(script: string, seconds: number): { text: string; dropp
+   return { text: words.slice(0, maxWords).join(' '), droppedWords: totalWords - maxWords };
+ }
+ 
+-// ─── Prompt composition ───────────────────────────────────────────────────────
+-
+ function joinParts(...parts: (string | undefined)[]): string {
+   return parts
+     .map((part) => (part ?? '').trim())
+@@ -246,17 +142,6 @@ function composeVoiceDescription(dna: DNAData): string {
+     : 'A warm, natural Indonesian narrator.';
+ }
+ 
+-// ─── ComfyUI output helpers ───────────────────────────────────────────────────
+-
+-/**
+- * A message an operator can act on.
+- *
+- * Two things matter here. A thrown non-Error would otherwise stringify to the
+- * literal "undefined" via `.message`, and `ComfyUIError.details` carries
+- * ComfyUI's `node_errors` — which, for the two node packs `workflows.ts` marks
+- * UNVERIFIED-PENDING-INSTALL, is exactly the payload that names the missing class
+- * or the wrong input key. Dropping it turns a five-second fix into a hunt.
+- */
+ function describeError(error: unknown): string {
+   const message = (error instanceof Error ? error.message : String(error)) || 'Kesalahan tidak diketahui.';
+   if (!(error instanceof ComfyUIError) || error.details === undefined) return message;
+@@ -269,10 +154,6 @@ function describeError(error: unknown): string {
+   return `${message} — detail ComfyUI: ${details}`;
+ }
+ 
+-/**
+- * The one file a given terminal node produced. Addressed by node id, never by
+- * position in a flattened list — graphs gain nodes and key order is not a contract.
+- */
+ function requireOutputFile(
+   comfy: ComfyUIClient,
+   entry: ComfyHistoryEntry,
+@@ -281,15 +162,11 @@ function requireOutputFile(
+ ): ComfyFileRef {
+   const files = comfy.collectOutputFiles(entry, nodeId);
+   if (files.length === 0) {
+-    throw new Error(
+-      `ComfyUI selesai tetapi tidak mengembalikan file ${label} dari node "${nodeId}". ` +
+-        `Periksa apakah node output pada workflow ${label} masih sesuai.`,
+-    );
++    throw new Error(`ComfyUI selesai tetapi tidak mengembalikan file ${label} dari node "${nodeId}".`);
+   }
+   return files[0];
+ }
+ 
+-/** Pull an output file out of ComfyUI and onto local disk for FFmpeg. */
+ async function downloadTo(
+   comfy: ComfyUIClient,
+   file: ComfyFileRef,
+@@ -302,30 +179,48 @@ async function downloadTo(
+   return destination;
+ }
+ 
+-/**
+- * Builds the ComfyFileRef for the .srt.
+- *
+- * `Save SRT` is not an OUTPUT node, so /history carries no file ref for it — only
+- * a path string echoed through PreviewAny. The reference is therefore assembled
+- * by hand from that string's basename, falling back to the name we asked for.
+- *
+- * `fallbackName` is a parameter rather than a module constant on purpose: it is
+- * the same value handed to `buildTranscriptionWorkflow`, so the graph and the
+- * fallback cannot drift apart. And it must be unique per run — upstream's
+- * `SaveSRTNode.save_srt` is `os.path.join(output_dir, name) + ".srt"` written
+- * with a plain `open(..., 'w')`: no counter, no dedup, straight overwrite. With
+- * a fixed name two concurrent runs share one file on disk, and since the /view
+- * download happens after this run's own poll returns, a second run finishing
+- * inside the poll gap would have this run burn the wrong narration's subtitles
+- * into its video — succeeding, and warning nothing.
+- */
+ function resolveSrtRef(reportedPath: string | undefined, fallbackName: string): ComfyFileRef {
+   const basename = (reportedPath ?? '').trim().split(/[\\/]/).pop() ?? '';
+   const filename = basename.toLowerCase().endsWith('.srt') ? basename : `${fallbackName}.srt`;
+   return { filename, subfolder: TRANSCRIPTION_SRT_SUBFOLDER, type: 'output' };
+ }
+ 
+-// ─── The pipeline ─────────────────────────────────────────────────────────────
++function parseSrt(srtContent: string): WordTimestamp[] {
++  const blocks = srtContent.trim().split(/\n\s*\n/);
++  const words: WordTimestamp[] = [];
++  
++  const timeToSec = (timeStr: string) => {
++    const [time, ms] = timeStr.split(',');
++    const [hours, minutes, seconds] = time.split(':').map(Number);
++    return (hours * 3600 + minutes * 60 + seconds) + (Number(ms) || 0) / 1000;
++  };
++  
++  for (const block of blocks) {
++    const lines = block.split('\n');
++    if (lines.length < 3) continue;
++    
++    const timeLine = lines[1];
++    const match = timeLine.match(/(\d{2}:\d{2}:\d{2},\d{3})\s*-->\s*(\d{2}:\d{2}:\d{2},\d{3})/);
++    if (!match) continue;
++    
++    const startSec = timeToSec(match[1]);
++    const endSec = timeToSec(match[2]);
++    const text = lines.slice(2).join(' ').trim();
++    
++    const tokens = text.split(/\s+/).filter(Boolean);
++    if (tokens.length === 0) continue;
++    const secPerWord = (endSec - startSec) / tokens.length;
++    
++    for (let i = 0; i < tokens.length; i++) {
++      words.push({
++        word: tokens[i],
++        start: startSec + i * secPerWord,
++        end: startSec + (i + 1) * secPerWord
++      });
++    }
++  }
++  return words;
++}
+ 
+ export async function generateContentAction(
+   input: GenerateContentInput,
+@@ -335,91 +230,99 @@ export async function generateContentAction(
+   const workDir = path.join(os.tmpdir(), `venturo-gen-${timestamp}`);
+ 
+   try {
+-    const script = composeNarration(input);
+-    if (!script) {
+-      return {
+-        success: false,
+-        message: 'Naskah narasi kosong. Isi Hook/Insight/CTA pada Visual Guide terlebih dahulu.',
+-        warnings,
+-      };
+-    }
+-
+     const comfy = new ComfyUIClient();
+     if (!(await comfy.isReachable())) {
+       return {
+         success: false,
+-        message:
+-          'ComfyUI tidak dapat dihubungi. Jalankan ComfyUI di 127.0.0.1:8188 ' +
+-          '(atau set COMFYUI_BASE_URL) lalu coba lagi.',
++        message: 'ComfyUI tidak dapat dihubungi. Jalankan ComfyUI di 127.0.0.1:8188 (atau set COMFYUI_BASE_URL) lalu coba lagi.',
+         warnings,
+       };
+     }
+ 
+-    const duration = videoDurationSeconds();
+-    const { text: narration, droppedWords } = budgetNarration(script, duration);
+-    if (droppedWords > 0) {
++    fs.mkdirSync(workDir, { recursive: true });
++
++    // 1. Scan b-roll
++    const bRollDir = path.join(process.cwd(), 'public', 'b-roll');
++    let assets: any[] = [];
++    if (fs.existsSync(bRollDir)) {
++      assets = await scanAssets(bRollDir);
++    }
++    
++    const useBRollPath = assets.length > 0;
++
++    let duration = 0;
++    let narrationText = '';
++    let blueprint: any = null;
++    let frameName = '';
++
++    if (useBRollPath) {
++      // ── Stage B-Roll 1: Blueprint
++      const contextStr = JSON.stringify({ dna: input.dna, guide: input.visualGuide });
++      blueprint = await createEditingBlueprint(contextStr, assets);
++      
++      // Fix blueprint timeline paths
++      blueprint.timeline.forEach((clip: any) => {
++        clip.file = path.join(bRollDir, path.basename(clip.file));
++        duration += clip.duration;
++      });
++      narrationText = blueprint.tts_script;
++      
++    } else {
++      // ── Stage SVD 1: Narration script setup and Cloudflare T2I
++      const script = composeNarration(input);
++      if (!script) {
++        return {
++          success: false,
++          message: 'Naskah narasi kosong. Isi Hook/Insight/CTA pada Visual Guide terlebih dahulu.',
++          warnings,
++        };
++      }
++      duration = videoDurationSeconds();
++      const { text: budgetedNarration, droppedWords } = budgetNarration(script, duration);
++      narrationText = budgetedNarration;
++      if (droppedWords > 0) {
++        warnings.push(
++          `Naskah dipangkas ${droppedWords} kata agar muat dalam video ${duration.toFixed(1)} detik ` +
++            `(${SVD_VIDEO_FRAMES} frame @ ${SVD_FPS}fps). Perpendek naskah atau pakai checkpoint SVD ` +
++            `dengan frame lebih banyak.`,
++        );
++      }
+       warnings.push(
+-        `Naskah dipangkas ${droppedWords} kata agar muat dalam video ${duration.toFixed(1)} detik ` +
+-          `(${SVD_VIDEO_FRAMES} frame @ ${SVD_FPS}fps). Perpendek naskah atau pakai checkpoint SVD ` +
+-          `dengan frame lebih banyak.`,
++        `Panjang narasi diperkirakan dari asumsi ${WORDS_PER_SECOND} kata/detik dan belum pernah ` +
++          `diukur dari VoxCPM2. Jika TTS bicara lebih lambat, ekor narasi akan terpotong saat render.`,
+       );
+-    }
+-    // Reported on every run, not only when the script was cut: the fit is a
+-    // prediction, and if VoxCPM2 speaks slower than assumed the render will drop
+-    // the tail of even an "already fitting" script.
+-    warnings.push(
+-      `Panjang narasi diperkirakan dari asumsi ${WORDS_PER_SECOND} kata/detik dan belum pernah ` +
+-        `diukur dari VoxCPM2. Jika TTS bicara lebih lambat, ekor narasi akan terpotong saat render.`,
+-    );
+ 
+-    fs.mkdirSync(workDir, { recursive: true });
+-
+-    // ── Stage 1: T2I on Cloudflare (unchanged provider), then hand the still to ComfyUI.
+-    const framePath = path.join(workDir, 'frame.png');
+-    const imageOk = await generateImageFromCloudflare(composeImagePrompt(input), framePath);
+-    if (!imageOk || !fs.existsSync(framePath)) {
+-      return {
+-        success: false,
+-        message:
+-          'Gagal membuat gambar awal via Cloudflare. Periksa CLOUDFLARE_IMAGE_API_URL dan CLOUDFLARE_IMAGE_API_KEY.',
+-        warnings,
+-      };
++      const framePath = path.join(workDir, 'frame.png');
++      const imageOk = await generateImageFromCloudflare(composeImagePrompt(input), framePath);
++      if (!imageOk || !fs.existsSync(framePath)) {
++        return {
++          success: false,
++          message: 'Gagal membuat gambar awal via Cloudflare. Periksa CLOUDFLARE_IMAGE_API_URL dan CLOUDFLARE_IMAGE_API_KEY.',
++          warnings,
++        };
++      }
++      const frameUpload = await comfy.uploadFile(
++        fs.readFileSync(framePath),
++        `venturo_frame_${timestamp}.png`,
++      );
++      frameName = frameUpload.subfolder
++        ? `${frameUpload.subfolder}/${frameUpload.name}`
++        : frameUpload.name;
+     }
+-    const frameUpload = await comfy.uploadFile(
+-      fs.readFileSync(framePath),
+-      `venturo_frame_${timestamp}.png`,
+-    );
+-    const frameName = frameUpload.subfolder
+-      ? `${frameUpload.subfolder}/${frameUpload.name}`
+-      : frameUpload.name;
+ 
+-    // ── Stage 2: narration (VoxCPM2). Awaited before anything else is queued.
++    // ── Stage 2: Narration (VoxCPM2)
+     const narrationEntry = await comfy.runWorkflow(
+       buildNarrationWorkflow({
+-        text: narration,
++        text: narrationText,
+         voiceDescription: composeVoiceDescription(input.dna),
+       }),
+     );
+     const narrationFile = requireOutputFile(comfy, narrationEntry, NARRATION_OUTPUT_NODE, 'narasi');
+     const voicePath = await downloadTo(comfy, narrationFile, workDir, 'narration');
+ 
+-    // ── Stage 3: subtitles (Whisper). Needs the narration back inside ComfyUI's
+-    // input directory, because LoadAudio reads from there and not from our disk.
+-    //
+-    // Two things here are soft, both for the same reason — an unverified custom
+-    // node must not destroy a run that has already paid for narration:
+-    //
+-    //   1. ComfyUI REJECTING the graph. Validation happens at POST /prompt, so an
+-    //      uninstalled or mis-wired `Apply Whisper` / `Save SRT` fails there, in a
+-    //      second, with node_errors naming the culprit.
+-    //   2. Collecting the .srt afterwards. `Save SRT` reports only a path string,
+-    //      so if it writes somewhere unexpected the /view download 404s — a
+-    //      subtitle-shaped problem, not a reason to lose the video.
+-    //
+-    // Everything between them stays fatal by design. Local file I/O, the upload
+-    // and above all `waitForPrompt` are outside both catches: a hung Whisper graph
+-    // must surface as its real timeout, not as a shrug.
++    // ── Stage 3: Subtitles (Whisper & ASS generation)
+     let srtPath: string | undefined;
++    const assPath = path.join(workDir, 'subtitles.ass');
+     const srtName = `venturo_subtitles_${timestamp}`;
+     const audioUpload = await comfy.uploadFile(
+       fs.readFileSync(voicePath),
+@@ -429,76 +332,83 @@ export async function generateContentAction(
+       ? `${audioUpload.subfolder}/${audioUpload.name}`
+       : audioUpload.name;
+ 
+-    let transcriptionPromptId: string | undefined;
+     try {
+-      transcriptionPromptId = await comfy.queuePrompt(
++      const transcriptionPromptId = await comfy.queuePrompt(
+         buildTranscriptionWorkflow({ audioName, srtName }),
+       );
+-    } catch (error) {
+-      warnings.push(
+-        `Subtitle dilewati, ComfyUI menolak workflow transkripsi ` +
+-          `(kemungkinan node Whisper belum terpasang): ${describeError(error)}`,
+-      );
+-    }
+-
+-    if (transcriptionPromptId) {
+-      const transcriptionEntry = await comfy.waitForPrompt(transcriptionPromptId);
+-      const [reportedSrtPath] = comfy.collectOutputText(
+-        transcriptionEntry,
+-        TRANSCRIPTION_SRT_PATH_NODE,
+-      );
+-      try {
++      if (transcriptionPromptId) {
++        const transcriptionEntry = await comfy.waitForPrompt(transcriptionPromptId);
++        const [reportedSrtPath] = comfy.collectOutputText(
++          transcriptionEntry,
++          TRANSCRIPTION_SRT_PATH_NODE,
++        );
+         srtPath = await downloadTo(
+           comfy,
+           resolveSrtRef(reportedSrtPath, srtName),
+           workDir,
+           'subtitles',
+         );
+-      } catch (error) {
+-        warnings.push(`Subtitle dilewati, gagal mengambil berkas .srt: ${describeError(error)}`);
++        const srtContent = fs.readFileSync(srtPath, 'utf8');
++        const words = parseSrt(srtContent);
++        generateAssFile(words, assPath);
+       }
++    } catch (error) {
++      warnings.push(`Subtitle dilewati atau gagal: ${describeError(error)}`);
++    }
++
++    if (!fs.existsSync(assPath)) {
++      generateAssFile([], assPath);
+     }
+ 
+-    // ── Stage 4: background music (ACE-Step), generated at the video's length.
++    // ── Stage 4: Background music (ACE-Step)
++    const bgmPromptStr = useBRollPath && blueprint ? blueprint.bgm_prompt : (input.bgmTags?.trim() || composeBgmTags(input));
+     const musicEntry = await comfy.runWorkflow(
+       buildMusicWorkflow({
+-        tags: input.bgmTags?.trim() || composeBgmTags(input),
++        tags: bgmPromptStr,
+         seconds: Math.max(1, Math.ceil(duration)),
+       }),
+     );
+     const musicFile = requireOutputFile(comfy, musicEntry, MUSIC_OUTPUT_NODE, 'BGM');
+     const bgmPath = await downloadTo(comfy, musicFile, workDir, 'bgm');
+ 
+-    // ── Stage 5: the picture (SVD). Heaviest model, queued last and alone.
+-    const videoEntry = await comfy.runWorkflow(
+-      buildImageToVideoWorkflow({
+-        imageName: frameName,
+-        width: SVD_WIDTH,
+-        height: SVD_HEIGHT,
+-        videoFrames: SVD_VIDEO_FRAMES,
+-        fps: SVD_FPS,
+-      }),
+-    );
+-    const videoFile = requireOutputFile(comfy, videoEntry, IMAGE_TO_VIDEO_OUTPUT_NODE, 'video');
+-    const videoPath = await downloadTo(comfy, videoFile, workDir, 'scene');
+-
+-    // ── Stage 6: the edit — Ken Burns, ducked BGM, burned-in subtitles.
++    // ── Stage 5: Render
+     const finalDir = path.join(process.cwd(), 'public', 'generations', 'final');
++    if (!fs.existsSync(finalDir)) {
++      fs.mkdirSync(finalDir, { recursive: true });
++    }
+     const outputPath = path.join(finalDir, `final_${timestamp}.mp4`);
+-    await renderDynamicVideo({
+-      videoPath,
+-      voicePath,
+-      bgmPath,
+-      srtPath,
+-      outputPath,
+-      durationSeconds: duration,
+-    });
++
++    if (useBRollPath) {
++      await stitchBlueprint(blueprint, voicePath, bgmPath, assPath, outputPath);
++    } else {
++      // ── Stage SVD 5: The picture (SVD)
++      const videoEntry = await comfy.runWorkflow(
++        buildImageToVideoWorkflow({
++          imageName: frameName,
++          width: SVD_WIDTH,
++          height: SVD_HEIGHT,
++          videoFrames: SVD_VIDEO_FRAMES,
++          fps: SVD_FPS,
++        }),
++      );
++      const videoFile = requireOutputFile(comfy, videoEntry, IMAGE_TO_VIDEO_OUTPUT_NODE, 'video');
++      const videoPath = await downloadTo(comfy, videoFile, workDir, 'scene');
++
++      await renderDynamicVideo({
++        videoPath,
++        voicePath,
++        bgmPath,
++        assPath,
++        outputPath,
++        durationSeconds: duration,
++      });
++    }
+ 
+     return {
+       success: true,
+       message: 'Video berhasil dibuat!',
+       videoUrl: `/generations/final/final_${timestamp}.mp4`,
+-      narration,
++      narration: narrationText,
+       durationSeconds: duration,
+       warnings,
+     };
+@@ -506,13 +416,10 @@ export async function generateContentAction(
+     console.error('[GenerateContent] Pipeline gagal:', error);
+     return {
+       success: false,
+-      // describeError, not `.message`: it survives non-Error throws and carries
+-      // ComfyUI's node_errors through to the operator.
+       message: `Gagal membuat video. ${describeError(error)}`,
+       warnings,
+     };
+   } finally {
+-    // Intermediates only; the finished mp4 lives under public/.
+     try {
+       fs.rmSync(workDir, { recursive: true, force: true });
+     } catch (cleanupError) {
+diff --git a/src/app/api/generate/bgm/route.ts b/src/app/api/generate/bgm/route.ts
+deleted file mode 100644
+index d3c58ff..0000000
+--- a/src/app/api/generate/bgm/route.ts
++++ /dev/null
+@@ -1,31 +0,0 @@
+-import { NextResponse } from "next/server";
+-import fs from "fs";
+-import path from "path";
+-
+-export const maxDuration = 120;
+-
+-export async function POST(req: Request) {
+-  try {
+-    const { prompt, tags, title } = await req.json();
+-
+-    // Legacy route, superseded by ACE-Step in src/app/actions/generate.ts.
+-    console.log(`[BGM-Mock] MOCK MODE AKTIF: mengembalikan BGM statis, bukan hasil generate...`);
+-    
+-    // Simulate a brief delay
+-    await new Promise(r => setTimeout(r, 1000));
+-    
+-    const bgmPath = path.join(process.cwd(), 'public', 'generations', 'bgm', 'Porter Robinson - dullscythe (Skybreak Remix) [No Copyright Music] [t-oJODEZha0].mp3');
+-    const audioBuffer = fs.readFileSync(bgmPath);
+-
+-    return NextResponse.json({ 
+-      success: true, 
+-      audioBase64: audioBuffer.toString('base64'),
+-      mimeType: 'audio/mpeg',
+-      savedPath: `/generations/bgm/Porter Robinson - dullscythe (Skybreak Remix) [No Copyright Music] [t-oJODEZha0].mp3`
+-    });
+-
+-  } catch (error: any) {
+-    console.error("BGM Error:", error);
+-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+-  }
+-}
+diff --git a/src/app/api/generate/stitch/route.ts b/src/app/api/generate/stitch/route.ts
+index e81f8b2..0726721 100644
+--- a/src/app/api/generate/stitch/route.ts
++++ b/src/app/api/generate/stitch/route.ts
+@@ -9,11 +9,7 @@ export const runtime = 'nodejs';
+ export const maxDuration = 300; // 5 minutes to allow for multi-video downloading and FFmpeg processing
+ 
+ if (ffmpegStatic) {
+-  let ffmpegPath = ffmpegStatic;
+-  // Fix Next.js Turbopack path rewriting issue
+-  if (ffmpegPath.includes('\\ROOT\\')) {
+-    ffmpegPath = ffmpegPath.replace('\\ROOT\\', process.cwd() + '\\');
+-  }
++  const ffmpegPath = ffmpegStatic;
+   
+   if (fs.existsSync(ffmpegPath)) {
+     ffmpeg.setFfmpegPath(ffmpegPath);
+diff --git a/src/app/api/generate/tts/route.ts b/src/app/api/generate/tts/route.ts
+deleted file mode 100644
+index ce60f8b..0000000
+--- a/src/app/api/generate/tts/route.ts
++++ /dev/null
+@@ -1,68 +0,0 @@
+-import { NextRequest, NextResponse } from "next/server";
+-import { Communicate, SubMaker } from 'edge-tts-universal';
+-
+-export const maxDuration = 60;
+-
+-export async function POST(req: NextRequest) {
+-  try {
+-    const { text, voice } = await req.json();
+-
+-    if (!text) {
+-      return NextResponse.json({ success: false, error: "Text is required" }, { status: 400 });
+-    }
+-
+-    const communicate = new Communicate(text, voice || 'id-ID-AndikaNeural');
+-    const subMaker = new SubMaker();
+-    
+-    const chunks: Buffer[] = [];
+-    for await (const chunk of communicate.stream()) {
+-      if (chunk.type === 'audio' && chunk.data) {
+-        chunks.push(chunk.data);
+-      } else if (chunk.type === 'WordBoundary') {
+-        subMaker.feed(chunk); // Generate SRT timestamp per word
+-      }
+-    }
+-    
+-    const srtContent = subMaker.getSrt();
+-    const audioBuffer = Buffer.concat(chunks);
+-    const audioBase64 = audioBuffer.toString('base64');
+-    
+-    // Save to public folder
+-    const fs = require('fs');
+-    const path = require('path');
+-    const timestamp = Date.now();
+-    const ttsDir = path.join(process.cwd(), 'public', 'generations', 'tts');
+-    fs.mkdirSync(ttsDir, { recursive: true });
+-    
+-    const audioPath = path.join(ttsDir, `tts_${timestamp}.mp3`);
+-    const srtPath = path.join(ttsDir, `subs_${timestamp}.srt`);
+-    
+-    fs.writeFileSync(audioPath, audioBuffer);
+-    fs.writeFileSync(srtPath, srtContent, 'utf-8');
+-
+-    // Calculate duration in seconds from SRT content
+-    let duration = 5.0; // fallback
+-    const timeMatches = [...srtContent.matchAll(/--> (\d\d):(\d\d):(\d\d),(\d\d\d)/g)];
+-    if (timeMatches.length > 0) {
+-      const lastMatch = timeMatches[timeMatches.length - 1];
+-      const hours = parseInt(lastMatch[1], 10);
+-      const minutes = parseInt(lastMatch[2], 10);
+-      const seconds = parseInt(lastMatch[3], 10);
+-      const millis = parseInt(lastMatch[4], 10);
+-      duration = hours * 3600 + minutes * 60 + seconds + millis / 1000;
+-    }
+-
+-    return NextResponse.json({ 
+-      success: true, 
+-      audioBase64: audioBase64,
+-      mimeType: 'audio/mpeg',
+-      srtContent: srtContent,
+-      duration: duration,
+-      savedPath: `/generations/tts/tts_${timestamp}.mp3`
+-    });
+-
+-  } catch (error: any) {
+-    console.error("TTS Error:", error);
+-    return NextResponse.json({ error: error.message }, { status: 500 });
+-  }
+-}
+diff --git a/src/components/ClientLayout.tsx b/src/components/ClientLayout.tsx
+index d84fc38..e144892 100644
+--- a/src/components/ClientLayout.tsx
++++ b/src/components/ClientLayout.tsx
+@@ -8,11 +8,12 @@ import ContentPage from './ContentPage';
+ import VisualGuidePage from './VisualGuidePage';
+ import AssetsPage from './AssetsPage';
+ import SidecarChatbot from './SidecarChatbot';
+-import ToastContainer, { showSuccess, showError, showInfo } from './Toast';
++import ToastContainer, { showSuccess, showError, showInfo, showWarning } from './Toast';
+ import { createClient } from '@/lib/supabase/client';
+ import { useRouter } from 'next/navigation';
+ import { Beaker, Folder, PanelLeftClose, PanelLeftOpen, User, LayoutDashboard, LayoutTemplate, FileVideo, RefreshCw } from 'lucide-react';
+ import { syncAll } from '@/app/actions/sync';
++import { generateContentAction } from '@/app/actions/generate';
+ 
+ export type AssetFolder = {
+   id: string;
+@@ -174,145 +175,34 @@ export default function ClientLayout() {
+ 
+     const handleConfirmGenerate = async () => {
+     setIsGenerateModalOpen(false);
+-    setActivePage('content'); // <--- Redirect ke Content Page
+-    setGenerateProgress({ progress: 5, message: "Menyiapkan sistem..." }); // Initial state
++    setActivePage('content');
++    setGenerateProgress({ progress: 10, message: "Menjalankan AI Video Generator Pipeline (ComfyUI)..." });
+     setGeneratedVideoUrl(null);
+ 
+     try {
+-      const { data: { session } } = await supabase.auth.getSession();
+-      const userId = session?.user?.id || 'anonymous_user';
+-
+-      const uploadedGlobalUrls: string[] = [];
+-      const uploadedFolderUrls: string[] = [];
+-      
+-      const uploadFiles = async (files: File[], targetArray: string[], folderPath: string) => {
+-        for (const file of files) {
+-          const fileExt = file.name.split('.').pop();
+-          const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+-          const filePath = `${userId}/${folderPath}/${fileName}`;
+-
+-          const { data, error } = await supabase.storage.from('assets').upload(filePath, file);
+-
+-          if (error) {
+-            console.error("Error uploading file:", error);
+-            if (error.message.includes('bucket not found')) {
+-              showInfo("PERINGATAN: Bucket 'assets' belum dibuat di Supabase Dashboard.");
+-            }
+-          } else if (data) {
+-            const { data: publicUrlData } = supabase.storage.from('assets').getPublicUrl(filePath);
+-            targetArray.push(publicUrlData.publicUrl);
+-          }
+-        }
+-      };
+-
+-      if (globalAssets.length > 0 || selectedFolderId) {
+-        setGenerateProgress({ progress: 10, message: "Mengunggah aset ke Supabase Storage..." });
+-        await uploadFiles(globalAssets, uploadedGlobalUrls, 'global');
+-        
+-        if (selectedFolderId) {
+-          const folder = assetFolders.find(f => f.id === selectedFolderId);
+-          if (folder && folder.files.length > 0) {
+-            await uploadFiles(folder.files, uploadedFolderUrls, `folder_${folder.id}`);
+-          }
+-        }
++      const result = await generateContentAction({
++        dna: dnaData,
++        visualGuide: visualGuide,
++      });
++
++      if (result.warnings && result.warnings.length > 0) {
++        result.warnings.forEach((warning) => {
++          showWarning(warning);
++        });
+       }
+ 
+-      const allAssetUrls = [...uploadedGlobalUrls, ...uploadedFolderUrls];
+-      const hasFootage = allAssetUrls.length > 0;
+-      let url: string = '';
+-
+-      if (!hasFootage) {
+-        // === FLOW A: NO FOOTAGE AVAILABLE ===
+-        // This flow previously generated video from scratch via the Dreamina browser-automation
+-        // pipeline (src/lib/dreamina), which has been removed as part of the migration to a local
+-        // ComfyUI pipeline. AI video generation without footage is unavailable until that pipeline
+-        // lands (see docs/superpowers/plans/2026-07-28-comfyui-local-pipeline.md).
+-        throw new Error("Generasi video AI tanpa footage belum tersedia (menunggu integrasi ComfyUI). Silakan unggah aset/footage terlebih dahulu.");
+-      } else {
+-        // === FLOW B: FOOTAGE AVAILABLE ===
+-        // 1. Director Phase 1 (Scripting)
+-        setGenerateProgress({ progress: 15, message: "Fase 1/5: Menulis naskah narasi utama..." });
+-        const scriptRes = await fetch('/api/generate/director', {
+-          method: 'POST',
+-          headers: { 'Content-Type': 'application/json' },
+-          body: JSON.stringify({ action: 'script_only', dna: dnaData, visualGuide })
+-        }).then(r => r.json());
+-
+-        if (!scriptRes.success) throw new Error(scriptRes.error || "Gagal membuat naskah.");
+-
+-        // 2. TTS Gen & Extract Duration
+-        setGenerateProgress({ progress: 35, message: "Fase 2/5: Generasi suara TTS & ukur durasi pasti..." });
+-        const ttsRes = await fetch('/api/generate/tts', {
+-          method: 'POST',
+-          headers: { 'Content-Type': 'application/json' },
+-          body: JSON.stringify({ text: scriptRes.narration, voice: "id-ID-AndikaNeural" })
+-        }).then(r => r.json());
+-
+-        if (!ttsRes.success) throw new Error(ttsRes.error || "Gagal membuat TTS.");
+-
+-        const ttsDuration = ttsRes.duration || 10.0;
+-
+-        // 3. Director Phase 2 (Multimodal Scene Planning to match ttsDuration)
+-        setGenerateProgress({ progress: 55, message: `Fase 3/5: Menyusun & memotong adegan video (target ${ttsDuration.toFixed(1)}s)...` });
+-        const sceneRes = await fetch('/api/generate/director', {
+-          method: 'POST',
+-          headers: { 'Content-Type': 'application/json' },
+-          body: JSON.stringify({
+-            action: 'scene_planning',
+-            dna: dnaData,
+-            visualGuide,
+-            assetUrls: allAssetUrls,
+-            targetDuration: ttsDuration
+-          })
+-        }).then(r => r.json());
+-
+-        if (!sceneRes.success) throw new Error(sceneRes.error || "Gagal merancang potongan adegan.");
+-
+-        // Check if any filler video is needed
+-        const needsFiller = sceneRes.scenes?.some((s: any) => s.type === 'generated');
+-        if (needsFiller) {
+-          // AI filler-video generation previously used the Dreamina browser-automation pipeline,
+-          // which has been removed as part of the migration to a local ComfyUI pipeline. Scenes
+-          // requiring generated filler footage cannot be fulfilled until that pipeline lands.
+-          throw new Error("Generasi video filler AI belum tersedia (menunggu integrasi ComfyUI). Pastikan aset footage mencukupi durasi target.");
+-        }
+-
+-        // 4. BGM Gen
+-        setGenerateProgress({ progress: 75, message: "Membuat musik BGM..." });
+-        const bgmRes = await fetch('/api/generate/bgm', {
+-          method: 'POST',
+-          headers: { 'Content-Type': 'application/json' },
+-          body: JSON.stringify({ prompt: scriptRes.bgmPrompt })
+-        }).then(r => r.json());
+-
+-        if (!bgmRes.success) throw new Error(bgmRes.error || "Gagal membuat BGM.");
+-
+-        // 5. Stitching
+-        setGenerateProgress({ progress: 90, message: "Menjahit potongan video aset & audio (FFmpeg)..." });
+-        const stitchRes = await fetch('/api/generate/stitch', {
+-          method: 'POST',
+-          headers: { 'Content-Type': 'application/json' },
+-          body: JSON.stringify({
+-            ttsBase64: ttsRes.audioBase64,
+-            bgmBase64: bgmRes.audioBase64,
+-            srtContent: ttsRes.srtContent,
+-            scenes: sceneRes.scenes,
+-            generatedVideoUrl: null
+-          })
+-        }).then(r => r.json());
+-
+-        if (!stitchRes.success) throw new Error(stitchRes.error || "Gagal menjahit video.");
+-        url = stitchRes.videoUrl;
++      if (!result.success) {
++        throw new Error(result.message || "Gagal membuat video.");
+       }
+ 
+-      setGeneratedVideoUrl(url);
++      if (result.videoUrl) {
++        setGeneratedVideoUrl(result.videoUrl);
++      }
+       setGenerateProgress(null);
+-      showSuccess("Video berhasil dibuat!");
+-
++      showSuccess(result.message || "Video berhasil dibuat!");
+     } catch (err: any) {
+       console.error(err);
+       showError(err.message || "Terjadi kesalahan sistem saat memproses video.");
+-      // Tampilkan error di dalam card progress!
+       setGenerateProgress({ progress: 100, message: err.message || "Terjadi kesalahan", isError: true } as any);
+     }
+   };
+diff --git a/src/lib/ffmpeg/dynamic_editor.ts b/src/lib/ffmpeg/dynamic_editor.ts
+index 5d8b063..a72f4df 100644
+--- a/src/lib/ffmpeg/dynamic_editor.ts
++++ b/src/lib/ffmpeg/dynamic_editor.ts
+@@ -2,6 +2,7 @@ import ffmpeg from 'fluent-ffmpeg';
+ import ffmpegStatic from 'ffmpeg-static';
+ import fs from 'fs';
+ import path from 'path';
++import type { DirectorBlueprint } from '../google/director';
+ 
+ /**
+  * Dynamic post-processing stage for the ComfyUI pipeline.
+@@ -23,11 +24,7 @@ import path from 'path';
+ // its postinstall never downloaded the binary, so existence is checked before use
+ // and we otherwise fall back to whatever ffmpeg is on PATH.
+ if (ffmpegStatic) {
+-  let ffmpegPath: string = ffmpegStatic;
+-  // Fix Next.js Turbopack path rewriting issue
+-  if (ffmpegPath.includes('\\ROOT\\')) {
+-    ffmpegPath = ffmpegPath.replace('\\ROOT\\', process.cwd() + '\\');
+-  }
++  const ffmpegPath: string = ffmpegStatic;
+   if (fs.existsSync(ffmpegPath)) {
+     ffmpeg.setFfmpegPath(ffmpegPath);
+   } else {
+@@ -62,8 +59,8 @@ export interface RenderParams {
+   voicePath: string;
+   /** Background music produced by ACE-Step. Omit to render without music. */
+   bgmPath?: string;
+-  /** Whisper subtitles (.srt). Omit to render without burned-in captions. */
+-  srtPath?: string;
++  /** Subtitles (.ass). Omit to render without burned-in captions. */
++  assPath?: string;
+   /** Destination .mp4 path. */
+   outputPath: string;
+   /**
+@@ -195,27 +192,12 @@ function buildAudioChain(hasBgm: boolean): string[] {
+ }
+ 
+ /**
+- * Burned-in, styled captions. The plan calls for "dynamic subtitles", so this
+- * uses the libass `subtitles` filter with a real `force_style` and renders the
++ * Burned-in, styled captions. Uses the libass `ass` filter and renders the
+  * text into the picture, rather than muxing a passive soft-subtitle track.
+  */
+-function buildSubtitleChain(srtPath: string): string[] {
+-  const style = [
+-    'FontName=Arial',
+-    'FontSize=42',
+-    'Bold=1',
+-    'PrimaryColour=&H00FFFFFF',
+-    'OutlineColour=&H00000000',
+-    'BorderStyle=1',
+-    'Outline=3',
+-    'Shadow=1',
+-    'Alignment=2',
+-    'MarginV=140',
+-  ].join(',');
+-
+-  // The filename is escaped rather than quoted (see escapeFilterPath); the style
+-  // string has no such constraint and stays quoted so its commas survive.
+-  return [`[v_kb]subtitles=${escapeFilterPath(srtPath)}:force_style='${style}'[v_out]`];
++function buildSubtitleChain(assPath: string): string[] {
++  // The filename is escaped rather than quoted (see escapeFilterPath).
++  return [`[v_kb]ass=${escapeFilterPath(assPath)}[v_out]`];
+ }
+ 
+ /** Input durations harvested from ffmpeg's own stderr banner, keyed by input index. */
+@@ -290,7 +272,7 @@ export async function renderDynamicVideo(params: RenderParams): Promise<string>
+     videoPath,
+     voicePath,
+     bgmPath,
+-    srtPath,
++    assPath,
+     outputPath,
+     durationSeconds = DEFAULT_DURATION,
+     width = DEFAULT_WIDTH,
+@@ -308,12 +290,12 @@ export async function renderDynamicVideo(params: RenderParams): Promise<string>
+   // Optional inputs are dropped rather than trusted, so a stale path from an
+   // upstream step cannot take the whole render down.
+   const bgmFile = bgmPath && fs.existsSync(bgmPath) ? bgmPath : undefined;
+-  const srtFile = srtPath && fs.existsSync(srtPath) ? srtPath : undefined;
++  const assFile = assPath && fs.existsSync(assPath) ? assPath : undefined;
+   if (bgmPath && !bgmFile) {
+     console.warn(`[DynamicEditor] BGM diabaikan, file tidak ditemukan: ${bgmPath}`);
+   }
+-  if (srtPath && !srtFile) {
+-    console.warn(`[DynamicEditor] Subtitle diabaikan, file tidak ditemukan: ${srtPath}`);
++  if (assPath && !assFile) {
++    console.warn(`[DynamicEditor] Subtitle diabaikan, file tidak ditemukan: ${assPath}`);
+   }
+ 
+   const outputDir = path.dirname(path.resolve(outputPath));
+@@ -325,11 +307,11 @@ export async function renderDynamicVideo(params: RenderParams): Promise<string>
+ 
+   const filters = [
+     ...buildKenBurnsChain(width, height, fps, duration),
+-    ...(srtFile ? buildSubtitleChain(srtFile) : []),
++    ...(assFile ? buildSubtitleChain(assFile) : []),
+     ...buildAudioChain(Boolean(bgmFile)),
+   ];
+   // Without subtitles the Ken Burns output is already the final video node.
+-  const videoOut = srtFile ? 'v_out' : 'v_kb';
++  const videoOut = assFile ? 'v_out' : 'v_kb';
+   const filterGraph = filters.join(';');
+ 
+   return new Promise<string>((resolve, reject) => {
+@@ -384,3 +366,51 @@ export async function renderDynamicVideo(params: RenderParams): Promise<string>
+       .save(outputPath);
+   });
+ }
++
++export async function stitchBlueprint(
++  blueprint: DirectorBlueprint,
++  voicePath: string,
++  bgmPath: string,
++  assPath: string,
++  outputPath: string
++): Promise<string> {
++  return new Promise((resolve, reject) => {
++    const outputDir = path.dirname(path.resolve(outputPath));
++    if (!fs.existsSync(outputDir)) {
++      fs.mkdirSync(outputDir, { recursive: true });
++    }
++
++    let command = ffmpeg();
++    let filterGraph: string[] = [];
++
++    // Add inputs and trim filters based on timeline
++    blueprint.timeline.forEach((clip, i) => {
++      command = command.input(clip.file);
++      const start = clip.start || 0;
++      filterGraph.push(`[${i}:v]trim=start=${start}:duration=${clip.duration},setpts=PTS-STARTPTS[v${i}];`);
++    });
++
++    const concatInputs = blueprint.timeline.map((_, i) => `[v${i}]`).join('');
++    filterGraph.push(`${concatInputs}concat=n=${blueprint.timeline.length}:v=1:a=0[vconcat];`);
++
++    command = command.input(voicePath).input(bgmPath);
++    const vIdx = blueprint.timeline.length;
++    const bIdx = blueprint.timeline.length + 1;
++
++    // Audio ducking + Ass Subtitles
++    filterGraph.push(`[${vIdx}:a][${bIdx}:a]amix=inputs=2:duration=first:dropout_transition=2[aout];`);
++    const escapedAss = escapeFilterPath(assPath);
++    filterGraph.push(`[vconcat]ass=${escapedAss}[vout]`);
++
++    command
++      .complexFilter(filterGraph.join(''))
++      .map('[vout]')
++      .map('[aout]')
++      .outputOptions(['-c:v libx264', '-c:a aac', '-pix_fmt yuv420p'])
++      .output(outputPath)
++      .on('end', () => resolve(outputPath))
++      .on('error', reject)
++      .run();
++  });
++}
++
+diff --git a/src/lib/ffmpeg/probe.ts b/src/lib/ffmpeg/probe.ts
+new file mode 100644
+index 0000000..2183bb5
+--- /dev/null
++++ b/src/lib/ffmpeg/probe.ts
+@@ -0,0 +1,26 @@
++import ffmpeg from 'fluent-ffmpeg';
++import fs from 'fs';
++import path from 'path';
++
++export interface AssetMetadata {
++  file: string;
++  duration: number;
++}
++
++export async function scanAssets(dir: string): Promise<AssetMetadata[]> {
++  if (!fs.existsSync(dir)) return [];
++  const files = fs.readdirSync(dir).filter(f => f.endsWith('.mp4'));
++  
++  const results: AssetMetadata[] = [];
++  for (const file of files) {
++    const fullPath = path.join(dir, file);
++    const duration = await new Promise<number>((resolve) => {
++      ffmpeg.ffprobe(fullPath, (err, metadata) => {
++        if (err || !metadata?.format?.duration) resolve(5);
++        else resolve(metadata.format.duration);
++      });
++    });
++    results.push({ file: fullPath, duration });
++  }
++  return results;
++}
+diff --git a/src/lib/ffmpeg/subtitles.ts b/src/lib/ffmpeg/subtitles.ts
+new file mode 100644
+index 0000000..6bc1a06
+--- /dev/null
++++ b/src/lib/ffmpeg/subtitles.ts
+@@ -0,0 +1,43 @@
++import fs from 'fs';
++import path from 'path';
++
++export interface WordTimestamp {
++  word: string;
++  start: number; // in seconds
++  end: number;
++}
++
++export function generateAssFile(words: WordTimestamp[], outputPath: string): void {
++  const dir = path.dirname(path.resolve(outputPath));
++  if (!fs.existsSync(dir)) {
++    fs.mkdirSync(dir, { recursive: true });
++  }
++
++  let assContent = `[Script Info]
++ScriptType: v4.00+
++PlayResX: 1080
++PlayResY: 1920
++
++[V4+ Styles]
++Format: Name, Fontname, Fontsize, PrimaryColour, OutlineColour, BackColour, Bold, Italic, Alignment, MarginL, MarginR, MarginV
++Style: Premium,Inter,80,&H00FFFFFF,&H00000000,&H80000000,-1,0,2,10,10,150
++
++[Events]
++Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
++`;
++
++  const formatTime = (s: number) => {
++    const d = new Date(s * 1000);
++    return `${d.getUTCHours()}:${String(d.getUTCMinutes()).padStart(2, '0')}:${String(d.getUTCSeconds()).padStart(2, '0')}.${String(Math.floor(d.getUTCMilliseconds() / 10)).padStart(2, '0')}`;
++  };
++
++  words.forEach((w) => {
++    const start = formatTime(w.start);
++    const end = formatTime(w.end);
++    // Advanced Karaoke Bounce Animation
++    const anim = `{\\t(0,100,\\fscx120\\fscy120)\\t(100,200,\\fscx100\\fscy100)}`;
++    assContent += `Dialogue: 0,${start},${end},Premium,,0,0,0,,${anim}${w.word}\n`;
++  });
++
++  fs.writeFileSync(outputPath, assContent, 'utf-8');
++}
+diff --git a/src/lib/google/director.ts b/src/lib/google/director.ts
+new file mode 100644
+index 0000000..852dc0b
+--- /dev/null
++++ b/src/lib/google/director.ts
+@@ -0,0 +1,37 @@
++import { GoogleGenAI } from '@google/genai';
++import { AssetMetadata } from '../ffmpeg/probe';
++import path from 'path';
++
++export interface DirectorBlueprint {
++  tts_script: string;
++  bgm_prompt: string;
++  timeline: { file: string; duration: number; start?: number }[];
++}
++
++export async function createEditingBlueprint(context: string, assets: AssetMetadata[]): Promise<DirectorBlueprint> {
++  const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || process.env.GOOGLE_GENAI_API_KEY });
++  const assetInfo = assets.map(a => `${path.basename(a.file)} (Duration: ${a.duration}s)`).join('\n');
++  
++  const prompt = `You are an expert Video Director. We have these B-Roll clips:
++${assetInfo}
++
++Context: ${context}
++Create a voiceover script (~15-20s) and an exact video editing timeline. 
++You can trim or reuse clips to match the voiceover length exactly. Do not exceed the original clip's duration in a single cut.
++Return ONLY valid JSON format:
++{
++  "tts_script": "text",
++  "bgm_prompt": "upbeat lo-fi",
++  "timeline": [ { "file": "path/to/clip1.mp4", "start": 0, "duration": 4 } ]
++}`;
++
++  const response = await ai.models.generateContent({
++    model: 'gemini-2.5-flash',
++    contents: prompt,
++    config: { responseMimeType: "application/json" }
++  });
++  
++  const cleanedText = response.text?.replace(/^```(?:json)?\s*|\s*```$/g, '').trim() || '{}';
++  return JSON.parse(cleanedText);
++}
++

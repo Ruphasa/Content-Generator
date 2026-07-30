@@ -106,10 +106,14 @@ Output WAJIB berupa JSON valid saja tanpa markdown/penjelasan tambahan, format:
       const match = responseText.match(/\{[\s\S]*\}/);
       const jsonString = match ? match[0] : responseText;
       const parsed = JSON.parse(jsonString);
+      const imagePrompt = typeof parsed?.imagePrompt === 'string' ? parsed.imagePrompt : '';
+      const narrationScript = typeof parsed?.narrationScript === 'string' ? parsed.narrationScript : '';
+      const bgmTags = typeof parsed?.bgmTags === 'string' ? parsed.bgmTags : '';
+
       return {
-        imagePrompt: parsed.imagePrompt || `${visualGuide.visualFocus || 'Modern software development scene'}, brand ${dna.brandName || ''}, 9:16 vertical composition, cinematic lighting`,
-        narrationScript: parsed.narrationScript || visualGuide.hook || '',
-        bgmTags: parsed.bgmTags || `${visualGuide.sound || 'upbeat tech'}, instrumental`,
+        imagePrompt: imagePrompt || `${visualGuide.visualFocus || 'Modern software development scene'}, brand ${dna.brandName || ''}, 9:16 vertical composition, cinematic lighting`,
+        narrationScript: narrationScript || visualGuide.hook || '',
+        bgmTags: bgmTags || `${visualGuide.sound || 'upbeat tech'}, instrumental`,
         usedFallback: false,
       };
     } catch (parseError) {

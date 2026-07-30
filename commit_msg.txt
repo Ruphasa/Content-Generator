@@ -1,0 +1,1 @@
+fix: set serverExternalPackages and remove ROOT ffmpeg workaround

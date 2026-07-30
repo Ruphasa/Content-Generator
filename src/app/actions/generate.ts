@@ -127,6 +127,16 @@ function videoDurationSeconds(): number {
   return SVD_VIDEO_FRAMES / SVD_FPS;
 }
 
+function toDirectDriveUrl(url: string): string {
+  const match = url.match(/drive\.google\.com\/file\/d\/([a-zA-Z0-9_-]{25,})/) ||
+                url.match(/drive\.google\.com\/uc\?id=([a-zA-Z0-9_-]{25,})/) ||
+                url.match(/id=([a-zA-Z0-9_-]{25,})/);
+  if (match && match[1]) {
+    return `https://drive.usercontent.google.com/download?id=${match[1]}&export=download&confirm=t`;
+  }
+  return url;
+}
+
 function splitSentences(script: string): string[] {
   return (script.match(/[^.!?…]+[.!?…]+|[^.!?…]+$/g) ?? [])
     .map((sentence) => sentence.trim())
@@ -320,16 +330,6 @@ export async function generateContentAction(
 
         let attempted = 0;
         let downloaded = 0;
-
-function toDirectDriveUrl(url: string): string {
-  const match = url.match(/drive\.google\.com\/file\/d\/([^\/]+)/) ||
-                url.match(/drive\.google\.com\/uc\?id=([^\&]+)/) ||
-                url.match(/id=([a-zA-Z0-9_-]{25,})/);
-  if (match && match[1]) {
-    return `https://drive.usercontent.google.com/download?id=${match[1]}&export=download&confirm=t`;
-  }
-  return url;
-}
 
         // Sequential on purpose: keeps this run's resource usage predictable
         // alongside the strictly-serial ComfyUI queueing later in this action.
@@ -539,7 +539,7 @@ function toDirectDriveUrl(url: string): string {
     }
 
     // ── Stage 4: Background music (ACE-Step)
-    const bgmPromptStr =useBRollPath && blueprint ? blueprint.bgm_prompt : (svdBgmTags || input.bgmTags?.trim() || composeBgmTags(input));
+    const bgmPromptStr = useBRollPath && blueprint ? blueprint.bgm_prompt : (svdBgmTags || input.bgmTags?.trim() || composeBgmTags(input));
     console.log(`[Pipeline] Tahap 4: Meng-generate musik latar BGM via ACE-Step di ComfyUI (Prompt: "${bgmPromptStr}")...`);
     const musicEntry = await comfy.runWorkflow(
       buildMusicWorkflow({

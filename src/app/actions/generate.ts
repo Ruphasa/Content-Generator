@@ -26,8 +26,8 @@ import {
   buildNarrationWorkflow,
   buildTranscriptionWorkflow,
 } from '@/lib/comfyui/workflows';
-import { scanAssets } from '@/lib/ffmpeg/probe';
-import { createEditingBlueprint } from '@/lib/google/director';
+import { scanAssets, probeDuration } from '@/lib/ffmpeg/probe';
+import { generateScriptAndBgm, generateTimeline, type DirectorBlueprint } from '@/lib/google/director';
 import { generateDirectorPlan } from '@/lib/ai/director';
 import { renderDynamicVideo, stitchBlueprint } from '@/lib/ffmpeg/dynamic_editor';
 import { generateAssFile, type WordTimestamp } from '@/lib/ffmpeg/subtitles';
@@ -417,19 +417,13 @@ export async function generateContentAction(
 
     if (useBRollPath) {
       console.log(`[Pipeline] Skenario 2 Aktif: Menggunakan ${assets.length} file B-Roll yang ter-download.`);
-      // ── Stage B-Roll 1: Blueprint
+      // ── Stage B-Roll 1: Blueprint Script & BGM
       const contextStr = JSON.stringify({ dna: input.dna, guide: input.visualGuide });
-      blueprint = await createEditingBlueprint(contextStr, assets);
+      const scriptBgm = await generateScriptAndBgm(contextStr);
       
-      // Fix blueprint timeline paths
-      blueprint.timeline.forEach((clip: any) => {
-        clip.file = path.join(bRollDir, path.basename(clip.file));
-        // `duration` comes from model output; coerce so a stringy "4" cannot
-        // turn the accumulator into a string and break `.toFixed`/`Math.ceil`.
-        duration += Number(clip.duration) || 0;
-      });
-      narrationText = blueprint.tts_script;
-      console.log(`[Pipeline] Naskah Voiceover B-Roll AI Director (${duration.toFixed(1)}s):\n"${narrationText}"`);
+      narrationText = scriptBgm.tts_script;
+      svdBgmTags = scriptBgm.bgm_prompt;
+      console.log(`[Pipeline] Naskah Voiceover B-Roll AI Director:\n"${narrationText}"`);
       
     } else {
       console.log('[Pipeline] Skenario 1 Aktif: Mode Single Image (Cloudflare T2I + ComfyUI SVD).');
@@ -496,6 +490,23 @@ export async function generateContentAction(
     );
     const narrationFile = requireOutputFile(comfy, narrationEntry, NARRATION_OUTPUT_NODE, 'narasi');
     const voicePath = await downloadTo(comfy, narrationFile, workDir, 'narration');
+
+    if (useBRollPath) {
+      duration = await probeDuration(voicePath);
+      console.log(`[Pipeline] Stage B-Roll 2: Meracik timeline video menyesuaikan durasi audio ${duration.toFixed(2)}s...`);
+      const timelineResult = await generateTimeline(duration, assets);
+      
+      // Fix blueprint timeline paths
+      timelineResult.timeline.forEach((clip: any) => {
+        clip.file = path.join(bRollDir, path.basename(clip.file));
+      });
+
+      blueprint = {
+        tts_script: narrationText,
+        bgm_prompt: svdBgmTags,
+        timeline: timelineResult.timeline,
+      };
+    }
 
     // ── Stage 3: Subtitles (Whisper & ASS generation)
     console.log('[Pipeline] Tahap 3: Transkripsi subtitle otomatis via Whisper di ComfyUI...');

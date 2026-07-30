@@ -11,7 +11,7 @@ import SidecarChatbot from './SidecarChatbot';
 import ToastContainer, { showSuccess, showError, showInfo, showWarning } from './Toast';
 import { createClient } from '@/lib/supabase/client';
 import { useRouter } from 'next/navigation';
-import { Beaker, Folder, PanelLeftClose, PanelLeftOpen, User, LayoutDashboard, LayoutTemplate, FileVideo, RefreshCw } from 'lucide-react';
+import { Beaker, Folder, PanelLeftClose, PanelLeftOpen, User, LayoutDashboard, LayoutTemplate, FileVideo, RefreshCw, Cpu, Sparkles } from 'lucide-react';
 import { syncAll } from '@/app/actions/sync';
 import { generateContentAction } from '@/app/actions/generate';
 import { generatePremiumAction } from '@/app/actions/generatePremium';
@@ -465,21 +465,39 @@ export default function ClientLayout() {
 
               <div className="mt-4">
                 <h4 className="text-sm font-semibold text-gray-900 mb-2">Metode Generate</h4>
-                <div className="flex gap-2">
-                  <button
+                <div className="grid grid-cols-2 gap-3">
+                  {/* Card Local */}
+                  <div 
                     onClick={() => setGenerateMode('local')}
-                    aria-pressed={generateMode === 'local'}
-                    className={`flex-1 py-2 rounded-xl text-sm font-medium transition-colors ${generateMode === 'local' ? 'bg-[var(--venturo-teal)] text-white' : 'bg-gray-100 text-gray-600'}`}
+                    className={`relative p-4 rounded-2xl border-2 cursor-pointer transition-all duration-300 flex flex-col gap-1 ${
+                      generateMode === 'local' 
+                        ? 'border-[var(--venturo-teal)] bg-[var(--venturo-teal)]/5 shadow-sm' 
+                        : 'border-gray-100 hover:border-gray-200 bg-white'
+                    }`}
                   >
-                    Local (Gratis)
-                  </button>
-                  <button
+                    <div className="flex items-center gap-2 mb-1">
+                      <Cpu className={`w-4 h-4 ${generateMode === 'local' ? 'text-[var(--venturo-teal)]' : 'text-gray-400'}`} />
+                      <span className={`font-bold text-sm ${generateMode === 'local' ? 'text-[var(--venturo-teal)]' : 'text-gray-700'}`}>Local Engine</span>
+                    </div>
+                    <span className="text-xs text-gray-500 font-medium">Gratis • SVD & ComfyUI</span>
+                  </div>
+
+                  {/* Card Premium */}
+                  <div 
                     onClick={() => setGenerateMode('api')}
-                    aria-pressed={generateMode === 'api'}
-                    className={`flex-1 py-2 rounded-xl text-sm font-medium transition-colors ${generateMode === 'api' ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-600'}`}
+                    className={`relative p-4 rounded-2xl border-2 cursor-pointer transition-all duration-300 flex flex-col gap-1 ${
+                      generateMode === 'api' 
+                        ? 'border-indigo-500 bg-indigo-50 shadow-[0_0_15px_rgba(99,102,241,0.2)]' 
+                        : 'border-gray-100 hover:border-gray-200 bg-white'
+                    }`}
                   >
-                    Premium API (Berbayar)
-                  </button>
+                    <div className="absolute -top-2 -right-2 bg-gradient-to-r from-amber-400 to-orange-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm">PRO</div>
+                    <div className="flex items-center gap-2 mb-1">
+                      <Sparkles className={`w-4 h-4 ${generateMode === 'api' ? 'text-indigo-600' : 'text-gray-400'}`} />
+                      <span className={`font-bold text-sm ${generateMode === 'api' ? 'text-indigo-600' : 'text-gray-700'}`}>Cloud Veo API</span>
+                    </div>
+                    <span className="text-xs text-gray-500 font-medium">Berbayar • 1080p Cinematic</span>
+                  </div>
                 </div>
               </div>
 

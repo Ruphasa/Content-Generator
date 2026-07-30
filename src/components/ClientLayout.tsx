@@ -11,7 +11,7 @@ import SidecarChatbot from './SidecarChatbot';
 import ToastContainer, { showSuccess, showError, showInfo, showWarning } from './Toast';
 import { createClient } from '@/lib/supabase/client';
 import { useRouter } from 'next/navigation';
-import { Beaker, Folder, PanelLeftClose, PanelLeftOpen, User, LayoutDashboard, LayoutTemplate, FileVideo, RefreshCw, Cpu, Sparkles } from 'lucide-react';
+import { Beaker, Folder, PanelLeftClose, PanelLeftOpen, User, LayoutDashboard, LayoutTemplate, FileVideo, RefreshCw, Cpu, Sparkles, Wand2 } from 'lucide-react';
 import { syncAll } from '@/app/actions/sync';
 import { generateContentAction } from '@/app/actions/generate';
 import { generatePremiumAction } from '@/app/actions/generatePremium';
@@ -510,9 +510,17 @@ export default function ClientLayout() {
                 </button>
                 <button 
                   onClick={handleConfirmGenerate}
-                  className="px-5 py-2.5 rounded-xl font-bold bg-[var(--venturo-teal)] text-white shadow-lg hover:bg-[var(--venturo-dark)] transition-colors flex items-center gap-2"
+                  className={`px-5 py-2.5 rounded-xl font-bold text-white shadow-lg transition-all flex items-center gap-2 ${
+                    generateMode === 'api' 
+                      ? 'bg-gradient-to-r from-indigo-600 to-purple-600 hover:shadow-indigo-500/30 hover:scale-[1.02]' 
+                      : 'bg-[var(--venturo-teal)] hover:bg-[var(--venturo-dark)]'
+                  }`}
                 >
-                  Kirim ke AI Auto
+                  {generateMode === 'api' ? (
+                    <><Sparkles className="w-4 h-4" /> Render Premium</>
+                  ) : (
+                    <><Wand2 className="w-4 h-4" /> Generate Local</>
+                  )}
                 </button>
               </div>
             </div>

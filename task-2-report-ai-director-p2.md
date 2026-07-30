@@ -25,3 +25,8 @@
 
 ## Concerns
 - None. The dual-phase system allows perfect video-audio synchronization.
+
+## Reviewer Fixes (Task 2)
+- Fixed critical regex bug in `src/lib/google/director.ts` that stripped spaces from JSON (by removing stray `|\s*|`).
+- Refactored `dynamic_editor.ts` to implicitly use `DirectorBlueprint` types instead of inline definitions and `any`.
+- Re-ran `bun test` and verified that tests pass. All changes verified.

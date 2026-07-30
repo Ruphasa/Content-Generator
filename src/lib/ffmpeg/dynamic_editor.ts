@@ -410,7 +410,7 @@ export async function stitchBlueprint(
     // Add inputs and trim filters based on timeline. Each clip is first
     // normalised onto the common canvas/SAR/framerate so every [v${i}]
     // stream `concat` consumes is identical in every dimension it checks.
-    blueprint.timeline.forEach((clip: { file: string; start?: number; duration: number }, i: number) => {
+    blueprint.timeline.forEach((clip, i: number) => {
       command = command.input(clip.file);
       const start = clip.start || 0;
       const normalizeFilter =
@@ -421,7 +421,7 @@ export async function stitchBlueprint(
       );
     });
 
-    const concatInputs = blueprint.timeline.map((_: any, i: number) => `[v${i}]`).join('');
+    const concatInputs = blueprint.timeline.map((_, i: number) => `[v${i}]`).join('');
     filterGraph.push(`${concatInputs}concat=n=${blueprint.timeline.length}:v=1:a=0[vconcat];`);
 
     command = command.input(voicePath);

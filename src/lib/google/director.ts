@@ -102,7 +102,7 @@ Return ONLY valid JSON format:
     config: { responseMimeType: "application/json" }
   });
   
-  const cleanedText = response.text?.replace(/^```(?:json)?\s*|\s*|\s*```$/g, '').trim() || '';
+  const cleanedText = response.text?.replace(/^```(?:json)?\s*|\s*```$/g, '').trim() || '';
   if (!cleanedText) {
     throw new Error(
       'AI Director Phase 1 tidak mengembalikan jawaban (respons kosong atau diblokir). Coba lagi atau periksa GEMINI_API_KEY.',
@@ -143,7 +143,7 @@ Return ONLY valid JSON format:
     config: { responseMimeType: "application/json" }
   });
   
-  const cleanedText = response.text?.replace(/^```(?:json)?\s*|\s*|\s*```$/g, '').trim() || '';
+  const cleanedText = response.text?.replace(/^```(?:json)?\s*|\s*```$/g, '').trim() || '';
   if (!cleanedText) {
     throw new Error(
       'AI Director Phase 2 tidak mengembalikan jawaban (respons kosong atau diblokir). Coba lagi atau periksa GEMINI_API_KEY.',

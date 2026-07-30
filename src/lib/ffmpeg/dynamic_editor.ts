@@ -435,7 +435,8 @@ export async function stitchBlueprint(
     if (bgmPath && fs.existsSync(bgmPath)) {
       command = command.input(bgmPath);
       const bIdx = blueprint.timeline.length + 1;
-      filterGraph.push(`[${vIdx}:a][${bIdx}:a]amix=inputs=2:duration=first:dropout_transition=2[aout];`);
+      filterGraph.push(`[${bIdx}:a]volume=0.2[bgm_quiet];`);
+      filterGraph.push(`[${vIdx}:a][bgm_quiet]amix=inputs=2:duration=first:dropout_transition=2[aout];`);
     } else {
       filterGraph.push(`[${vIdx}:a]anull[aout];`);
     }

@@ -1,21 +1,25 @@
-# Task 1 Report: Desain Ulang Komponen "Metode Generate" menjadi Rich Cards
+# Task 1 Report: Desain Ulang "Asset Folder" dengan Icon Swap Sederhana
 
-## What Was Implemented
-1. **Rich Selection Cards**: Replaced simple button elements for `generateMode` in `src/components/ClientLayout.tsx` with interactive, 2-column grid Rich Cards:
-   - **Local Engine Card**: Features `Cpu` icon, venturo-teal accent styling, and subtitle `Gratis • SVD & ComfyUI`.
-   - **Cloud Veo API Card**: Features `Sparkles` icon, PRO gradient badge, indigo accent styling with glow shadow, and subtitle `Berbayar • 1080p Cinematic`.
-2. **Icon Imports**: Added `Cpu` and `Sparkles` icons from `lucide-react` in `src/components/ClientLayout.tsx`.
+## What was implemented
+- Added `hoveredFolderId` state (`const [hoveredFolderId, setHoveredFolderId] = useState<string | null>(null);`) to track folder mouse hover in `src/components/ClientLayout.tsx`.
+- Refactored asset folder card rendering inside the Generate modal:
+  - Removed old paper/folder layered wrapper (`<div className="relative w-16 h-16..."><FileText.../>...</div>`).
+  - Added `onMouseEnter={() => setHoveredFolderId(f.id)}` and `onMouseLeave={() => setHoveredFolderId(null)}` event handlers to card wrapper div.
+  - Implemented clean icon swap logic with smooth transition:
+    - Display `FolderOpen` (w-14 h-14) when `selectedFolderId === f.id || hoveredFolderId === f.id`, applying `scale-110 text-[var(--venturo-teal)] fill-[var(--venturo-teal)]/10` when selected, or `scale-105 text-gray-500 fill-gray-100` when hovered.
+    - Display `Folder` (w-14 h-14 text-gray-400 fill-gray-50) when idle.
 
-## Testing & Results
-- **TypeScript Verification**: Ran `bun tsc --noEmit` which completed with code 0 (0 compilation/type errors).
+## What was tested and test results
+- Ran `bun tsc --noEmit` to verify TypeScript compilation.
+- Result: 0 errors, full type safety maintained across all components.
 
-## Files Changed
-- `src/components/ClientLayout.tsx`: Updated imports and replaced simple button selector with rich interactive cards grid.
+## Files changed
+- `src/components/ClientLayout.tsx`
 
-## Self-Review Findings
-- The updated UI complies with venturo teal design tokens and rich cards styling requested in the brief.
-- Selection state properly toggles between `'local'` and `'api'` via `onClick={() => setGenerateMode(...)}`.
-- Hover and selected states give distinct visual feedback for both free and PRO modes.
+## Self-review findings
+- Code adheres to existing coding conventions and design tokens (`var(--venturo-teal)`).
+- Hover state updates reactively without unnecessary re-renders or state leaks.
+- All original click handlers and folder item counts remain intact.
 
-## Issues or Concerns
-- None. Implementation was executed without errors.
+## Any issues or concerns
+- None. Implementation matches specification exactly and passed static analysis smoothly.

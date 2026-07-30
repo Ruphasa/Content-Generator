@@ -12,7 +12,8 @@ Migrate from local scraper-based video generation to a fully automated API-drive
 1. **Director (LLM):** Gemini 2.5 Flash acts as director. Splits narrative into TTS text, generates timestamps, and creates visual prompts for Luma.
 2. **Audio (Voice & BGM):**
    - VO: Google Cloud TTS (Chirp).
-   - BGM: Google Lyria (MusicFX API). *Note: Lyria is very cheap (~$0.04 - $0.08 per song).*
+   - BGM: Google Lyria (MusicFX API).
+   - **BGM Caching:** Generated music will be cached and tagged (e.g., mood, genre). If a similar BGM is needed, the system reuses the cached file to save API costs.
 3. **Video (Visuals):**
    - Luma API (Pro Tier $90/mo) generates b-roll clips (12-18 clips per video).
 4. **Stitching & Burn:**
@@ -24,4 +25,6 @@ Migrate from local scraper-based video generation to a fully automated API-drive
 - The existing local Puppeteer/Playwright scraper logic for video generation will be completely removed. History is preserved in Git.
 
 ## 5. Deployment Constraints
-- **Docker:** FFmpeg must be isolated in a Docker container to prevent memory leaks and server crashes during heavy encoding.
+- **Docker Compose:**
+  - **FFmpeg Worker:** Isolated in a Docker container with strict RAM/CPU limits to prevent server crashes during heavy encoding.
+  - **Database:** PostgreSQL will be run in Docker to simplify environment setup and isolate data.

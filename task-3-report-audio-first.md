@@ -27,3 +27,8 @@
 
 ## Any issues or concerns
 - None. The modification cleanly achieves the Audio-First alignment.
+
+## Critical Issue Fix Report
+- **Issue**: `srtTranscript` was injected directly without truncation.
+- **Fix**: Implemented `const safeSrt = srtTranscript.slice(0, 4000);` in `src/lib/google/director.ts` to prevent token limit errors.
+- **Verification**: Typecheck passed via `bun tsc --noEmit`.

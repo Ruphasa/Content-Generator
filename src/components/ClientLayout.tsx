@@ -429,8 +429,20 @@ export default function ClientLayout() {
             )}
           </div>
         </div>
+      </main>
 
-        {/* Generate Modal */}
+      {/* 3. RIGHT PANEL (AI CHATBOT) */}
+      <aside className="w-[380px] h-full flex-shrink-0 pt-4 z-20">
+        <SidecarChatbot 
+          dnaData={dnaData} 
+          isReady={true} 
+          activeModal={activeModal} 
+          onApplySuggestion={updateMultipleDNA}
+        />
+      </aside>
+
+      {/* MODALS MOVED OUTSIDE OF MAIN TO FIX Z-INDEX STACKING CONTEXT */}
+      {/* Generate Modal */}
         {isGenerateModalOpen && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-gray-900/40 backdrop-blur-sm">
             <div className="bg-white rounded-3xl p-6 w-full max-w-md shadow-2xl border border-gray-100 flex flex-col gap-4">
@@ -439,27 +451,39 @@ export default function ClientLayout() {
                 Pilih folder tambahan untuk konten ini. Jika tidak memilih folder, akan menggunakan aset global saja.
               </p>
 
-              <div className="flex bg-gray-100 p-1.5 rounded-full w-full max-w-sm mx-auto my-5">
-                <button
-                  onClick={() => setGenerateMode('local')}
-                  className={`flex-1 flex justify-center items-center gap-2 py-2 text-sm font-bold rounded-full transition-all duration-300 ${
+              {/* Pill Toggle - Seluruh area bisa di-klik */}
+              <div 
+                onClick={() => setGenerateMode(generateMode === 'api' ? 'local' : 'api')}
+                className="relative flex bg-gray-100 p-1.5 rounded-full w-full max-w-sm mx-auto my-5 cursor-pointer select-none"
+              >
+                {/* Sliding Background */}
+                <div 
+                  className={`absolute top-1.5 bottom-1.5 w-[calc(50%-0.375rem)] bg-white rounded-full shadow-sm transition-all duration-300 ease-in-out ${
+                    generateMode === 'api' ? 'left-[calc(50%+0.1875rem)]' : 'left-1.5'
+                  }`}
+                />
+                
+                {/* Local Label */}
+                <div
+                  className={`flex-1 flex justify-center items-center gap-2 py-2 text-sm font-bold transition-all duration-300 relative z-10 ${
                     generateMode === 'local' 
-                      ? 'bg-white text-[var(--venturo-teal)] shadow-sm scale-100' 
-                      : 'text-gray-500 hover:text-gray-700 scale-95'
+                      ? 'text-[var(--venturo-teal)] scale-100' 
+                      : 'text-gray-500 group-hover:text-gray-700 scale-95'
                   }`}
                 >
                   <Monitor className="w-4 h-4" /> Local Engine
-                </button>
-                <button
-                  onClick={() => setGenerateMode('api')}
-                  className={`flex-1 flex justify-center items-center gap-2 py-2 text-sm font-bold rounded-full transition-all duration-300 ${
+                </div>
+
+                {/* API Label */}
+                <div
+                  className={`flex-1 flex justify-center items-center gap-2 py-2 text-sm font-bold transition-all duration-300 relative z-10 ${
                     generateMode === 'api' 
-                      ? 'bg-white text-[var(--venturo-teal)] shadow-sm scale-100' 
-                      : 'text-gray-500 hover:text-gray-700 scale-95'
+                      ? 'text-[var(--venturo-teal)] scale-100' 
+                      : 'text-gray-500 group-hover:text-gray-700 scale-95'
                   }`}
                 >
                   <Cloud className="w-4 h-4" /> Cloud API
-                </button>
+                </div>
               </div>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -509,17 +533,6 @@ export default function ClientLayout() {
             </div>
           </div>
         )}
-      </main>
-
-      {/* 3. RIGHT PANEL (AI CHATBOT) */}
-      <aside className="w-[380px] h-full flex-shrink-0 pt-4 z-20">
-        <SidecarChatbot 
-          dnaData={dnaData} 
-          isReady={true} 
-          activeModal={activeModal} 
-          onApplySuggestion={updateMultipleDNA}
-        />
-      </aside>
 
       {/* Toast Container */}
       <ToastContainer toasts={[]} onClose={(id) => {
